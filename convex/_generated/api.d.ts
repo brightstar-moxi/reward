@@ -9,6 +9,8 @@
  */
 
 import type * as scheme from "../scheme.js";
+import type * as sessions from "../sessions.js";
+import type * as users from "../users.js";
 
 import type {
   ApiFromModules,
@@ -18,6 +20,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   scheme: typeof scheme;
+  sessions: typeof sessions;
+  users: typeof users;
 }>;
 
 /**

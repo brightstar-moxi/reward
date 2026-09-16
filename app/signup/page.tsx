@@ -144,6 +144,9 @@ import { useRouter } from "next/navigation";
 import AuthLayout from "@/app/components/auth/AuthLayout";
 import AuthInput from "@/app/components/auth/AuthInput";
 
+// import { useAction } from "convex/react";
+// import { api } from "@/convex/_generated/api";
+
 export default function SignupPage() {
   const router = useRouter();
 
@@ -188,28 +191,34 @@ export default function SignupPage() {
     }
 
     try {
-      // Authentication will be connected here.
-      //
-      // Example:
-      //
-      // const result = await signup({
-      //   fullName,
-      //   email,
-      //   password,
-      // });
-
-      console.log({
-        fullName,
-        email,
-        password,
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: fullName,
+          email,
+          password,
+        }),
       });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || "Unable to create your account."
+        );
+      }
 
       router.push("/dashboard");
     } catch (error) {
       console.error("Signup error:", error);
 
       setError(
-        "Unable to create your account. Please try again."
+        error instanceof Error
+          ? error.message
+          : "Unable to create your account."
       );
     } finally {
       setLoading(false);
@@ -357,4 +366,11 @@ export default function SignupPage() {
     </AuthLayout>
   );
 }
+
+
+
+
+
+
+
 
