@@ -59,10 +59,10 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_email", ["email"]),
 
-  sessions: defineTable({
-    userId: v.id("users"),
-    tokenHash: v.string(),
-    expiresAt: v.number(),
-    createdAt: v.number(),
-  }).index("by_token_hash", ["tokenHash"]),
+ sessions: defineTable({
+  userId: v.id("users"),
+  tokenHash: v.string(),
+  expiresAt: v.number(),
+  createdAt: v.number(),
+}).index("by_token_hash", ["tokenHash"]),
 });
