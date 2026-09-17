@@ -57,7 +57,9 @@ export default defineSchema({
 
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_email", ["email"]),
+  }).index("by_email", ["email"])
+    .index("by_referral_code", ["referralCode"])
+  .index("by_referred_by", ["referredBy"]),
 
  sessions: defineTable({
   userId: v.id("users"),

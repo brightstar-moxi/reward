@@ -139,7 +139,7 @@
 import Link from "next/link";
 import { ArrowRight, Eye, EyeOff } from "lucide-react";
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import AuthLayout from "@/app/components/auth/AuthLayout";
 import AuthInput from "@/app/components/auth/AuthInput";
@@ -149,6 +149,10 @@ import AuthInput from "@/app/components/auth/AuthInput";
 
 export default function SignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+const referralCode =
+  searchParams.get("ref")?.trim().toUpperCase() || "";
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -200,6 +204,7 @@ export default function SignupPage() {
           name: fullName,
           email,
           password,
+          referralCode: referralCode || undefined,
         }),
       });
 

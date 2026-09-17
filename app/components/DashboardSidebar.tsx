@@ -10,7 +10,9 @@ import {
   Banknote,
   Settings,
   X,
+  User
 } from "lucide-react";
+import LogoutButton from "./auth/LogoutButton";
 
 const menuItems = [
   {
@@ -18,6 +20,11 @@ const menuItems = [
     href: "/dashboard",
     icon: LayoutDashboard,
   },
+   {
+  name: "Profile",
+  href: "/dashboard/profile",
+  icon: User,
+},
   {
     name: "Daily Tasks",
     href: "/dashboard/tasks",
@@ -43,6 +50,7 @@ const menuItems = [
     href: "/dashboard/settings",
     icon: Settings,
   },
+ 
 ];
 
 interface DashboardSidebarProps {
@@ -117,7 +125,7 @@ export default function DashboardSidebar({
               );
             })}
           </nav>
-
+<LogoutButton/>
           <div className="border-t p-4">
             <p className="text-xs text-gray-400">
               RewardHub

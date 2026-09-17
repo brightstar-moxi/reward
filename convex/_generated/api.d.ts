@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as referrals from "../referrals.js";
 import type * as sessions from "../sessions.js";
 import type * as users from "../users.js";
 
@@ -18,6 +19,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  referrals: typeof referrals;
   sessions: typeof sessions;
   users: typeof users;
 }>;
