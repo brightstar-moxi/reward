@@ -67,4 +67,31 @@ export default defineSchema({
   expiresAt: v.number(),
   createdAt: v.number(),
 }).index("by_token_hash", ["tokenHash"]),
+
+dailyActivities: defineTable({
+  day: v.number(),
+  title: v.string(),
+  description: v.string(),
+  isActive: v.boolean(),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+}).index("by_day", ["day"]),
+
+userActivities: defineTable({
+  userId: v.id("users"),
+  day: v.number(),
+  status: v.union(
+    v.literal("available"),
+    v.literal("in_progress"),
+    v.literal("completed")
+  ),
+  startedAt: v.optional(v.number()),
+  completedAt: v.optional(v.number()),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+})
+  .index("by_user", ["userId"])
+  .index("by_user_day", ["userId", "day"]),
 });
+
+
