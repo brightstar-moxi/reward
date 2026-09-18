@@ -159,6 +159,131 @@
 
 // latest code
 
+// import {
+//   mutation,
+//   query,
+// } from "./_generated/server";
+
+// import { v } from "convex/values";
+
+// async function hashToken(token: string) {
+//   const data = new TextEncoder().encode(token);
+
+//   const hash = await crypto.subtle.digest(
+//     "SHA-256",
+//     data
+//   );
+
+//   return Array.from(new Uint8Array(hash))
+//     .map((byte) =>
+//       byte.toString(16).padStart(2, "0")
+//     )
+//     .join("");
+// }
+
+// export const create = mutation({
+//   args: {
+//     userId: v.id("users"),
+//   },
+
+//   handler: async (ctx, args) => {
+//     const tokenBytes = new Uint8Array(32);
+
+//     crypto.getRandomValues(tokenBytes);
+
+//     const token = Array.from(tokenBytes)
+//       .map((byte) =>
+//         byte.toString(16).padStart(2, "0")
+//       )
+//       .join("");
+
+//     const tokenHash = await hashToken(token);
+
+//     const now = Date.now();
+
+//     const expiresAt =
+//       now + 30 * 24 * 60 * 60 * 1000;
+
+//     await ctx.db.insert("sessions", {
+//       userId: args.userId,
+//       tokenHash,
+//       expiresAt,
+//       createdAt: now,
+//     });
+
+//     return {
+//       token,
+//     };
+//   },
+// });
+
+// export const getCurrentUser = query({
+//   args: {
+//     token: v.string(),
+//   },
+
+//   handler: async (ctx, args) => {
+//     const tokenHash = await hashToken(args.token);
+
+//     const session = await ctx.db
+//       .query("sessions")
+//       .withIndex("by_token_hash", (q) =>
+//         q.eq("tokenHash", tokenHash)
+//       )
+//       .unique();
+
+//     if (!session) {
+//       return null;
+//     }
+
+//     if (session.expiresAt < Date.now()) {
+//       return null;
+//     }
+
+//     const user = await ctx.db.get(
+//       session.userId
+//     );
+
+//     if (!user || user.status !== "active") {
+//       return null;
+//     }
+
+//     return {
+//       id: user._id,
+//       name: user.name,
+//       email: user.email,
+//       role: user.role,
+//       status: user.status,
+//       referralCode: user.referralCode,
+//     };
+//   },
+// });
+
+// export const remove = mutation({
+//   args: {
+//     token: v.string(),
+//   },
+
+//   handler: async (ctx, args) => {
+//     const tokenHash = await hashToken(args.token);
+
+//     const session = await ctx.db
+//       .query("sessions")
+//       .withIndex("by_token_hash", (q) =>
+//         q.eq("tokenHash", tokenHash)
+//       )
+//       .unique();
+
+//     if (session) {
+//       await ctx.db.delete(session._id);
+//     }
+
+//     return {
+//       success: true,
+//     };
+//   },
+// });
+
 import {
   mutation,
   query,
@@ -183,47 +308,22 @@ async function hashToken(token: string) {
 
 export const create = mutation({
   args: {
-    userId: v.id("users"),
-  },
-
-  handler: async (ctx, args) => {
-    const tokenBytes = new Uint8Array(32);
-
-    crypto.getRandomValues(tokenBytes);
-
-    const token = Array.from(tokenBytes)
-      .map((byte) =>
-        byte.toString(16).padStart(2, "0")
-      )
-      .join("");
-
-    const tokenHash = await hashToken(token);
-
-    const now = Date.now();
-
-    const expiresAt =
-      now + 30 * 24 * 60 * 60 * 1000;
-
-    await ctx.db.insert("sessions", {
-      userId: args.userId,
-      tokenHash,
-      expiresAt,
-      createdAt: now,
-    });
-
-    return {
-      token,
-    };
-  },
-});
-
-export const getCurrentUser = query({
-  args: {
     token: v.string(),
+    taskId: v.id("tasks"),
+    proofStorageId: v.optional(
+      v.id("_storage")
+    ),
   },
 
   handler: async (ctx, args) => {
-    const tokenHash = await hashToken(args.token);
+    /*
+     * 1. Authenticate the user from
+     *    the session token.
+     */
+
+    const tokenHash = await hashToken(
+      args.token
+    );
 
     const session = await ctx.db
       .query("sessions")
@@ -233,53 +333,104 @@ export const getCurrentUser = query({
       .unique();
 
     if (!session) {
-      return null;
+      throw new Error("You are not authenticated.");
     }
 
     if (session.expiresAt < Date.now()) {
-      return null;
+      throw new Error("Your session has expired.");
     }
+
+    /*
+     * 2. Get the authenticated user.
+     */
 
     const user = await ctx.db.get(
       session.userId
     );
 
     if (!user || user.status !== "active") {
-      return null;
+      throw new Error("Your account is not active.");
     }
 
-    return {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      status: user.status,
-      referralCode: user.referralCode,
-    };
-  },
-});
+    /*
+     * 3. Get the task.
+     */
 
-export const remove = mutation({
-  args: {
-    token: v.string(),
-  },
+    const task = await ctx.db.get(
+      args.taskId
+    );
 
-  handler: async (ctx, args) => {
-    const tokenHash = await hashToken(args.token);
+    if (!task || !task.isActive) {
+      throw new Error(
+        "This task is no longer available."
+      );
+    }
 
-    const session = await ctx.db
-      .query("sessions")
-      .withIndex("by_token_hash", (q) =>
-        q.eq("tokenHash", tokenHash)
+    /*
+     * 4. Check whether proof is required.
+     */
+
+    if (
+      task.requiresProof &&
+      !args.proofStorageId
+    ) {
+      throw new Error(
+        "Proof is required for this task."
+      );
+    }
+
+    /*
+     * 5. Prevent duplicate submissions.
+     */
+
+    const existing = await ctx.db
+      .query("taskSubmissions")
+      .withIndex("by_user_task", (q) =>
+        q
+          .eq("userId", user._id)
+          .eq("taskId", args.taskId)
       )
-      .unique();
+      .first();
 
-    if (session) {
-      await ctx.db.delete(session._id);
+    if (existing) {
+      throw new Error(
+        "You have already submitted this task."
+      );
     }
 
+    /*
+     * 6. Create the submission.
+     */
+
+    const submissionId =
+      await ctx.db.insert(
+        "taskSubmissions",
+        {
+          userId: user._id,
+          taskId: args.taskId,
+
+          proofStorageId:
+            args.proofStorageId,
+
+          status: "pending",
+
+          submittedAt: Date.now(),
+        }
+      );
+
     return {
-      success: true,
+      submissionId,
+      status: "pending",
     };
   },
 });
+
+export const generateUploadUrl =
+  mutation({
+    args: {},
+
+    handler: async (ctx) => {
+      return await ctx.storage
+        .generateUploadUrl();
+    },
+  });

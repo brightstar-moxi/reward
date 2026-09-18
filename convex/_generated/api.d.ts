@@ -12,6 +12,8 @@ import type * as dailyActivities from "../dailyActivities.js";
 import type * as referrals from "../referrals.js";
 import type * as seed from "../seed.js";
 import type * as sessions from "../sessions.js";
+import type * as taskSubmissions from "../taskSubmissions.js";
+import type * as tasks from "../tasks.js";
 import type * as users from "../users.js";
 
 import type {
@@ -25,6 +27,8 @@ declare const fullApi: ApiFromModules<{
   referrals: typeof referrals;
   seed: typeof seed;
   sessions: typeof sessions;
+  taskSubmissions: typeof taskSubmissions;
+  tasks: typeof tasks;
   users: typeof users;
 }>;
 
