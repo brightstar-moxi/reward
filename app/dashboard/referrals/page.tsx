@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import {
   Copy,
   Check,
@@ -21,13 +23,18 @@ interface User {
 }
 
 export default function ReferralsPage() {
-  const [user, setUser] = useState<User | null>(null);
-  const [referrals, setReferrals] = useState<Referral[]>(
-    []
-  );
+const [user, setUser] = useState<User | null>(null);
+const [loading, setLoading] = useState(true);
+const [copied, setCopied] = useState(false);
 
-  const [loading, setLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
+const referrals = useQuery(
+  api.referrals.getMyReferrals,
+  user?.referralCode
+    ? {
+        referralCode: user.referralCode,
+      }
+    : "skip"
+);
 
   useEffect(() => {
     const loadReferrals = async () => {
@@ -159,7 +166,7 @@ export default function ReferralsPage() {
           </p>
 
           <p className="mt-1 text-2xl font-bold text-gray-900">
-            {referrals.length}
+          {referrals?.length ?? 0}
           </p>
         </div>
 
@@ -175,7 +182,7 @@ export default function ReferralsPage() {
 
           <p className="mt-1 text-2xl font-bold text-gray-900">
             {
-              referrals.filter(
+              (referrals ??[]).filter(
                 (referral) =>
                   referral.status === "active"
               ).length
@@ -215,7 +222,7 @@ export default function ReferralsPage() {
           </p>
         </div>
 
-        {referrals.length === 0 ? (
+        {!referrals || referrals.length === 0 ? (
           <div className="p-10 text-center">
             <Users
               size={32}
@@ -232,7 +239,7 @@ export default function ReferralsPage() {
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {referrals.map((referral) => (
+           {(referrals ?? []).map((referral) => (
               <div
                 key={referral.id}
                 className="flex items-center justify-between p-5"
