@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useQuery } from "convex/react";
 
 import { api } from "@/convex/_generated/api";
+import TaskSubmissionForm from "@/app/components/tasks/TaskSubmissionForm";
 
 export default function TaskDetailsPage() {
   const params = useParams();
@@ -134,6 +135,12 @@ export default function TaskDetailsPage() {
           </div>
         )}
       </div>
+
+ <TaskSubmissionForm
+        taskId={task._id}
+        requiresProof={task.requiresProof}
+      />
+
     </div>
   );
 }

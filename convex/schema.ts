@@ -152,6 +152,13 @@ userActivities: defineTable({
   .index("by_task", ["taskId"])
   .index("by_user_task", ["userId", "taskId"])
   .index("by_status", ["status"]),
+
+
+
+
+
+  
+
 });
 
 
