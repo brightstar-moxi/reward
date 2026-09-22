@@ -5,13 +5,15 @@ import { ArrowLeft, ExternalLink, ShieldCheck } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useQuery } from "convex/react";
 
+import { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
 import TaskSubmissionForm from "@/app/components/tasks/TaskSubmissionForm";
 
 export default function TaskDetailsPage() {
   const params = useParams();
 
-  const taskId = params.taskId as string;
+//   const taskId = params.taskId as string;
+const taskId = params.taskId as Id<"tasks">;
 
   const task = useQuery(
     api.tasks.getById,

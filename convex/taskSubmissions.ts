@@ -68,7 +68,7 @@
 
 
 
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 async function hashToken(token: string) {
@@ -226,5 +226,62 @@ export const generateUploadUrl = mutation({
     }
 
     return await ctx.storage.generateUploadUrl();
+  },
+});
+
+
+export const getMySubmission = query({
+  args: {
+    token: v.string(),
+    taskId: v.id("tasks"),
+  },
+
+  handler: async (ctx, args) => {
+    const tokenHash = await hashToken(args.token);
+
+    const session = await ctx.db
+      .query("sessions")
+      .withIndex("by_token_hash", (q) =>
+        q.eq("tokenHash", tokenHash)
+      )
+      .unique();
+
+    if (!session) {
+      return null;
+    }
+
+    if (session.expiresAt < Date.now()) {
+      return null;
+    }
+
+    const user = await ctx.db.get(
+      session.userId
+    );
+
+    if (!user || user.status !== "active") {
+      return null;
+    }
+
+    const submission = await ctx.db
+      .query("taskSubmissions")
+      .withIndex("by_user_task", (q) =>
+        q
+          .eq("userId", user._id)
+          .eq("taskId", args.taskId)
+      )
+      .first();
+
+    if (!submission) {
+      return null;
+    }
+
+    return {
+      id: submission._id,
+      status: submission.status,
+      proofStorageId:
+        submission.proofStorageId,
+      submittedAt:
+        submission.submittedAt,
+    };
   },
 });

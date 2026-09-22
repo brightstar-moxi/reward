@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type TaskSubmissionFormProps = {
   taskId: string;
@@ -15,19 +15,75 @@ export default function TaskSubmissionForm({
   const [preview, setPreview] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
 
+  const [submissionStatus, setSubmissionStatus] =
+    useState<
+      "pending" | "approved" | "rejected" | null
+    >(null);
+
+  const [checkingSubmission, setCheckingSubmission] =
+    useState(true);
+
+  /*
+   * Check whether the current user has already
+   * submitted this task.
+   */
+  useEffect(() => {
+    const checkSubmission = async () => {
+      try {
+        const response = await fetch(
+          `/api/tasks/submission?taskId=${taskId}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.error ||
+              "Unable to check submission."
+          );
+        }
+
+        if (data.submission) {
+          setSubmissionStatus(
+            data.submission.status
+          );
+        } else {
+          setSubmissionStatus(null);
+        }
+      } catch (error) {
+        console.error(
+          "Submission status error:",
+          error
+        );
+
+        setError(
+          error instanceof Error
+            ? error.message
+            : "Unable to check task status."
+        );
+      } finally {
+        setCheckingSubmission(false);
+      }
+    };
+
+    checkSubmission();
+  }, [taskId]);
+
+  /*
+   * Handle screenshot selection.
+   */
   const handleFileChange = (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
-    const selectedFile = event.target.files?.[0];
+    const selectedFile =
+      event.target.files?.[0];
 
     if (!selectedFile) {
       return;
     }
 
     setError("");
-    setSuccess(false);
 
     if (!selectedFile.type.startsWith("image/")) {
       setError("Please select an image file.");
@@ -35,7 +91,9 @@ export default function TaskSubmissionForm({
     }
 
     if (selectedFile.size > 5 * 1024 * 1024) {
-      setError("Image must be smaller than 5MB.");
+      setError(
+        "Image must be smaller than 5MB."
+      );
       return;
     }
 
@@ -47,176 +105,213 @@ export default function TaskSubmissionForm({
     setPreview(objectUrl);
   };
 
-//   const handleSubmit = async () => {
-//     setError("");
+  /*
+   * Submit task and screenshot.
+   */
+  const handleSubmit = async () => {
+    setError("");
 
-//     if (requiresProof && !file) {
-//       setError(
-//         "Please upload a screenshot before submitting."
-//       );
-//       return;
-//     }
-
-//     setLoading(true);
-
-//     try {
-//       /*
-//        * Upload functionality will be connected
-//        * to Convex Storage next.
-//        */
-
-//       console.log("Task ID:", taskId);
-//       console.log("Selected file:", file);
-
-//       await new Promise((resolve) =>
-//         setTimeout(resolve, 1000)
-//       );
-
-//       setSuccess(true);
-//     } catch (error) {
-//       console.error(
-//         "Submission error:",
-//         error
-//       );
-
-//       setError(
-//         "Unable to submit the task. Please try again."
-//       );
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-const handleSubmit = async () => {
-  setError("");
-
-  if (requiresProof && !file) {
-    setError(
-      "Please upload a screenshot before submitting."
-    );
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    /*
-     * 1. Ask our API for an upload URL.
-     */
-
-    const uploadUrlResponse = await fetch(
-      "/api/tasks/upload",
-      {
-        method: "POST",
-      }
-    );
-
-    const uploadUrlData =
-      await uploadUrlResponse.json();
-
-    if (!uploadUrlResponse.ok) {
-      throw new Error(
-        uploadUrlData.error ||
-          "Unable to prepare image upload."
+    if (requiresProof && !file) {
+      setError(
+        "Please upload a screenshot before submitting."
       );
+      return;
     }
 
-    /*
-     * 2. Upload screenshot to Convex Storage.
-     */
+    setLoading(true);
 
-    let proofStorageId: string | undefined;
-
-    if (file) {
-      const uploadResponse = await fetch(
-        uploadUrlData.uploadUrl,
+    try {
+      /*
+       * 1. Get authenticated upload URL.
+       */
+      const uploadUrlResponse = await fetch(
+        "/api/tasks/upload",
         {
           method: "POST",
-          headers: {
-            "Content-Type": file.type,
-          },
-          body: file,
         }
       );
 
-      if (!uploadResponse.ok) {
+      const uploadUrlData =
+        await uploadUrlResponse.json();
+
+      if (!uploadUrlResponse.ok) {
         throw new Error(
-          "Unable to upload screenshot."
+          uploadUrlData.error ||
+            "Unable to prepare image upload."
         );
       }
 
-      const uploadResult =
-        await uploadResponse.json();
+      /*
+       * 2. Upload screenshot to Convex Storage.
+       */
+      let proofStorageId:
+        | string
+        | undefined;
 
-      proofStorageId = uploadResult.storageId;
-    }
+      if (file) {
+        const uploadResponse = await fetch(
+          uploadUrlData.uploadUrl,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": file.type,
+            },
+            body: file,
+          }
+        );
 
-    /*
-     * 3. Create the task submission.
-     */
+        if (!uploadResponse.ok) {
+          throw new Error(
+            "Unable to upload screenshot."
+          );
+        }
 
-    const submissionResponse = await fetch(
-      "/api/tasks/submit",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          taskId,
-          proofStorageId,
-        }),
+        const uploadResult =
+          await uploadResponse.json();
+
+        proofStorageId =
+          uploadResult.storageId;
       }
-    );
 
-    const submissionData =
-      await submissionResponse.json();
+      /*
+       * 3. Create task submission.
+       */
+      const submissionResponse =
+        await fetch("/api/tasks/submit", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            taskId,
+            proofStorageId,
+          }),
+        });
 
-    if (!submissionResponse.ok) {
-      throw new Error(
-        submissionData.error ||
-          "Unable to submit task."
+      const submissionData =
+        await submissionResponse.json();
+
+      if (!submissionResponse.ok) {
+        throw new Error(
+          submissionData.error ||
+            "Unable to submit task."
+        );
+      }
+
+      /*
+       * 4. Update frontend state to match
+       *    the submission created in Convex.
+       */
+      setSubmissionStatus("pending");
+
+      setFile(null);
+      setPreview("");
+    } catch (error) {
+      console.error(
+        "Submission error:",
+        error
       );
+
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to submit the task."
+      );
+    } finally {
+      setLoading(false);
     }
+  };
 
-    setSuccess(true);
-  } catch (error) {
-    console.error(
-      "Submission error:",
-      error
-    );
-
-    setError(
-      error instanceof Error
-        ? error.message
-        : "Unable to submit the task."
-    );
-  } finally {
-    setLoading(false);
-  }
-};
-
-
-  if (success) {
+  /*
+   * Loading submission status.
+   */
+  if (checkingSubmission) {
     return (
-      <div className="rounded-2xl border border-green-200 bg-green-50 p-6">
-        <div className="mb-2 text-lg font-semibold text-green-800">
-          Task submitted
-        </div>
+      <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+        <p className="text-sm text-gray-500">
+          Checking task status...
+        </p>
+      </div>
+    );
+  }
 
-        <p className="text-sm text-green-700">
-          Your submission has been sent for
-          verification. Your reward will be added
-          after the task is approved.
+  /*
+   * Submission is pending.
+   */
+  if (submissionStatus === "pending") {
+    return (
+      <div className="rounded-3xl border border-yellow-200 bg-yellow-50 p-6">
+        <h2 className="text-lg font-semibold text-yellow-900">
+          Submission under review
+        </h2>
+
+        <p className="mt-2 text-sm leading-6 text-yellow-800">
+          Your screenshot has been submitted
+          successfully. Please wait while it is
+          reviewed.
         </p>
 
-        <div className="mt-4 inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+        <div className="mt-4 inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800">
           Pending review
         </div>
       </div>
     );
   }
 
+  /*
+   * Submission has been approved.
+   */
+  if (submissionStatus === "approved") {
+    return (
+      <div className="rounded-3xl border border-green-200 bg-green-50 p-6">
+        <h2 className="text-lg font-semibold text-green-900">
+          Task completed
+        </h2>
+
+        <p className="mt-2 text-sm leading-6 text-green-800">
+          Your task has been approved successfully.
+          Your reward has been processed.
+        </p>
+
+        <div className="mt-4 inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+          Approved
+        </div>
+      </div>
+    );
+  }
+
+  /*
+   * Submission was rejected.
+   *
+   * For now we allow the user to see the
+   * submission form again.
+   */
+  if (submissionStatus === "rejected") {
+    return (
+      <div className="space-y-5">
+        <div className="rounded-3xl border border-red-200 bg-red-50 p-6">
+          <h2 className="text-lg font-semibold text-red-900">
+            Submission rejected
+          </h2>
+
+          <p className="mt-2 text-sm leading-6 text-red-800">
+            Your previous submission was not
+            approved. You can submit new proof.
+          </p>
+
+          <div className="mt-4 inline-flex rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
+            Rejected
+          </div>
+        </div>
+
+        {/* Submission form continues below */}
+      </div>
+    );
+  }
+
+  /*
+   * No submission yet.
+   */
   return (
     <div className="space-y-5 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
       <div>
