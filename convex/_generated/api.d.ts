@@ -8,9 +8,12 @@
  * @module
  */
 
+import type * as admin from "../admin.js";
+import type * as adminSubmissions from "../adminSubmissions.js";
 import type * as dailyActivities from "../dailyActivities.js";
 import type * as referrals from "../referrals.js";
 import type * as seed from "../seed.js";
+import type * as seedAdmin from "../seedAdmin.js";
 import type * as sessions from "../sessions.js";
 import type * as taskSubmissions from "../taskSubmissions.js";
 import type * as tasks from "../tasks.js";
@@ -23,9 +26,12 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  admin: typeof admin;
+  adminSubmissions: typeof adminSubmissions;
   dailyActivities: typeof dailyActivities;
   referrals: typeof referrals;
   seed: typeof seed;
+  seedAdmin: typeof seedAdmin;
   sessions: typeof sessions;
   taskSubmissions: typeof taskSubmissions;
   tasks: typeof tasks;
