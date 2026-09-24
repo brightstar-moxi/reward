@@ -88,7 +88,56 @@ export default function AdminSubmissionsPage() {
       </div>
     );
   }
+const reviewSubmission = async (
+  submissionId: string,
+  decision: "approved" | "rejected"
+) => {
+  try {
+    const response = await fetch(
+      "/api/admin/submissions/review",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+        body: JSON.stringify({
+          submissionId,
+          decision,
+        }),
+      }
+    );
 
+    const data =
+      await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.error ||
+          "Unable to review submission."
+      );
+    }
+
+    setSubmissions((current) =>
+      current.filter(
+        (submission) =>
+          submission.id !==
+          submissionId
+      )
+    );
+  } catch (error) {
+    console.error(
+      "Review error:",
+      error
+    );
+
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Unable to review submission."
+    );
+  }
+};
   return (
     <div className="space-y-6 p-6">
       <div>
@@ -140,62 +189,144 @@ export default function AdminSubmissionsPage() {
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-gray-100">
-                {submissions.map(
-                  (submission) => (
-                    <tr
-                      key={submission.id}
-                      className="hover:bg-gray-50"
-                    >
-                      <td className="px-5 py-4">
-                        <p className="font-medium text-gray-900">
-                          {submission.user?.name ||
-                            "Unknown user"}
-                        </p>
+            <tbody className="divide-y divide-gray-100">
+  {submissions.map((submission) => (
+    <tr
+      key={submission.id}
+      className="hover:bg-gray-50"
+    >
+      <td className="px-5 py-4">
+        <p className="font-medium text-gray-900">
+          {submission.user?.name ||
+            "Unknown user"}
+        </p>
 
-                        <p className="text-xs text-gray-500">
-                          {submission.user?.email ||
-                            "No email"}
-                        </p>
-                      </td>
+        <p className="text-xs text-gray-500">
+          {submission.user?.email ||
+            "No email"}
+        </p>
+      </td>
 
-                      <td className="px-5 py-4">
-                        <p className="font-medium text-gray-900">
-                          {submission.task
-                            ?.title ||
-                            "Unknown task"}
-                        </p>
-                      </td>
+      <td className="px-5 py-4">
+        <p className="font-medium text-gray-900">
+          {submission.task?.title ||
+            "Unknown task"}
+        </p>
+      </td>
 
-                      <td className="px-5 py-4 text-sm text-gray-600">
-                        Day{" "}
-                        {submission.task
-                          ?.day ?? "-"}
-                      </td>
+      <td className="px-5 py-4 text-sm text-gray-600">
+        Day{" "}
+        {submission.task?.day ?? "-"}
+      </td>
 
-                      <td className="px-5 py-4 text-sm font-semibold text-green-700">
-                        ₦
-                        {(
-                          submission.task
-                            ?.reward ?? 0
-                        ).toLocaleString()}
-                      </td>
+      <td className="px-5 py-4 text-sm font-semibold text-green-700">
+        ₦
+        {(
+          submission.task?.reward ?? 0
+        ).toLocaleString()}
+      </td>
 
-                      <td className="px-5 py-4 text-sm text-gray-600">
-                        {new Date(
-                          submission.submittedAt
-                        ).toLocaleString()}
-                      </td>
+      <td className="px-5 py-4 text-sm text-gray-600">
+        {new Date(
+          submission.submittedAt
+        ).toLocaleString()}
+      </td>
 
-                      <td className="px-5 py-4">
-                        <span className="rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700">
-                          Pending
-                        </span>
-                      </td>
-                    </tr>
-                  )
-                )}
-              </tbody>
+      {/* Status */}
+      <td className="px-5 py-4">
+        <span className="rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700">
+          Pending
+        </span>
+      </td>
+
+      {/* Actions */}
+      <td className="px-5 py-4">
+        <div className="flex flex-wrap gap-2">
+          {/* View Screenshot */}
+          {submission.proofStorageId && (
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const response =
+                    await fetch(
+                      `/api/admin/submissions/proof?storageId=${encodeURIComponent(
+                        submission.proofStorageId!
+                      )}`
+                    );
+
+                  const data =
+                    await response.json();
+
+                  if (!response.ok) {
+                    throw new Error(
+                      data.error ||
+                        "Unable to load screenshot."
+                    );
+                  }
+
+                  if (!data.url) {
+                    throw new Error(
+                      "Screenshot URL is unavailable."
+                    );
+                  }
+
+                  window.open(
+                    data.url,
+                    "_blank",
+                    "noopener,noreferrer"
+                  );
+                } catch (error) {
+                  console.error(
+                    "Proof loading error:",
+                    error
+                  );
+
+                  alert(
+                    error instanceof Error
+                      ? error.message
+                      : "Unable to load screenshot."
+                  );
+                }
+              }}
+              className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"
+            >
+              View Screenshot
+            </button>
+          )}
+
+          {/* Approve */}
+          <button
+            type="button"
+            onClick={() =>
+              reviewSubmission(
+                submission.id,
+                "approved"
+              )
+            }
+            className="rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
+          >
+            Approve
+          </button>
+
+          {/* Reject */}
+          <button
+            type="button"
+            onClick={() =>
+              reviewSubmission(
+                submission.id,
+                "rejected"
+              )
+            }
+            className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700"
+          >
+            Reject
+          </button>
+        </div>
+      </td>
+    </tr>
+  ))}
+</tbody>
             </table>
           </div>
         </div>

@@ -94,6 +94,65 @@ export const getPending = query({
 
 
 
+export const getProofUrl = query({
+  args: {
+    token: v.string(),
+    storageId: v.id("_storage"),
+  },
+
+  handler: async (ctx, args) => {
+    const tokenHash = await hashToken(args.token);
+
+    const session = await ctx.db
+      .query("sessions")
+      .withIndex("by_token_hash", (q) =>
+        q.eq("tokenHash", tokenHash)
+      )
+      .unique();
+
+    if (!session) {
+      throw new Error(
+        "You are not authenticated."
+      );
+    }
+
+    if (session.expiresAt < Date.now()) {
+      throw new Error(
+        "Your session has expired."
+      );
+    }
+
+    const admin = await ctx.db.get(
+      session.userId
+    );
+
+    if (
+      !admin ||
+      admin.status !== "active"
+    ) {
+      throw new Error(
+        "Your account is not active."
+      );
+    }
+
+    if (admin.role !== "admin") {
+      throw new Error(
+        "Admin access required."
+      );
+    }
+
+    const url = await ctx.storage.getUrl(
+      args.storageId
+    );
+
+    return {
+      url,
+    };
+  },
+});
+
+
+
 export const approve = mutation({
   args: {
     token: v.string(),
@@ -281,3 +340,177 @@ async function hashToken(token: string) {
     )
     .join("");
 }
+
+
+export const reviewSubmission = mutation({
+  args: {
+    token: v.string(),
+
+    submissionId: v.id(
+      "taskSubmissions"
+    ),
+
+    decision: v.union(
+      v.literal("approved"),
+      v.literal("rejected")
+    ),
+
+    adminNote: v.optional(v.string()),
+  },
+
+  handler: async (ctx, args) => {
+    /*
+     * 1. Authenticate admin
+     */
+
+    const tokenHash = await hashToken(
+      args.token
+    );
+
+    const session = await ctx.db
+      .query("sessions")
+      .withIndex("by_token_hash", (q) =>
+        q.eq("tokenHash", tokenHash)
+      )
+      .unique();
+
+    if (!session) {
+      throw new Error(
+        "You are not authenticated."
+      );
+    }
+
+    if (session.expiresAt < Date.now()) {
+      throw new Error(
+        "Your session has expired."
+      );
+    }
+
+    const admin = await ctx.db.get(
+      session.userId
+    );
+
+    if (
+      !admin ||
+      admin.status !== "active"
+    ) {
+      throw new Error(
+        "Your account is not active."
+      );
+    }
+
+    if (admin.role !== "admin") {
+      throw new Error(
+        "Admin access required."
+      );
+    }
+
+    /*
+     * 2. Get submission
+     */
+
+    const submission =
+      await ctx.db.get(
+        args.submissionId
+      );
+
+    if (!submission) {
+      throw new Error(
+        "Submission not found."
+      );
+    }
+
+    /*
+     * 3. Prevent reviewing the same
+     *    submission twice.
+     */
+
+    if (submission.status !== "pending") {
+      throw new Error(
+        "This submission has already been reviewed."
+      );
+    }
+
+    /*
+     * 4. Get task
+     */
+
+    const task = await ctx.db.get(
+      submission.taskId
+    );
+
+    if (!task) {
+      throw new Error(
+        "Task not found."
+      );
+    }
+
+    const now = Date.now();
+
+    /*
+     * 5. REJECT
+     */
+
+    if (args.decision === "rejected") {
+      await ctx.db.patch(
+        args.submissionId,
+        {
+          status: "rejected",
+          adminNote: args.adminNote,
+          reviewedAt: now,
+          reviewedBy: admin._id,
+        }
+      );
+
+      return {
+        success: true,
+        status: "rejected",
+      };
+    }
+
+    /*
+     * 6. APPROVE
+     */
+
+    await ctx.db.patch(
+      args.submissionId,
+      {
+        status: "approved",
+        adminNote: args.adminNote,
+        reviewedAt: now,
+        reviewedBy: admin._id,
+      }
+    );
+
+    /*
+     * 7. Create wallet reward transaction
+     */
+
+    await ctx.db.insert(
+      "walletTransactions",
+      {
+        userId: submission.userId,
+
+        type: "reward",
+
+        amount: task.reward,
+
+        description:
+          `Day ${task.day} - ${task.title}`,
+
+        taskId: task._id,
+
+        submissionId:
+          submission._id,
+
+        createdAt: now,
+      }
+    );
+
+    return {
+      success: true,
+      status: "approved",
+      reward: task.reward,
+    };
+  },
+});

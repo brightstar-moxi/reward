@@ -154,11 +154,28 @@ userActivities: defineTable({
   .index("by_status", ["status"]),
 
 
+  walletTransactions: defineTable({
+  userId: v.id("users"),
 
+  type: v.union(
+    v.literal("reward"),
+    v.literal("withdrawal")
+  ),
 
+  amount: v.number(),
 
-  
+  description: v.string(),
 
+  taskId: v.optional(v.id("tasks")),
+
+  submissionId: v.optional(
+    v.id("taskSubmissions")
+  ),
+
+  createdAt: v.number(),
+})
+  .index("by_user", ["userId"])
+  .index("by_submission", ["submissionId"]),
 });
 
 
