@@ -151,20 +151,104 @@ export const create = mutation({
     }
 
     // Prevent duplicate submissions
-    const existing = await ctx.db
-      .query("taskSubmissions")
-      .withIndex("by_user_task", (q) =>
-        q
-          .eq("userId", user._id)
-          .eq("taskId", args.taskId)
-      )
-      .first();
+    // const existing = await ctx.db
+    //   .query("taskSubmissions")
+    //   .withIndex("by_user_task", (q) =>
+    //     q
+    //       .eq("userId", user._id)
+    //       .eq("taskId", args.taskId)
+    //   )
+    //   .first();
 
-    if (existing) {
+    // if (existing) {
+    //   throw new Error(
+    //     "You have already submitted this task."
+    //   );
+    // }
+
+
+
+    const existing = await ctx.db
+  .query("taskSubmissions")
+  .withIndex("by_user_task", (q) =>
+    q
+      .eq("userId", user._id)
+      .eq("taskId", args.taskId)
+  )
+  .first();
+
+if (existing) {
+  /*
+   * Approved submissions cannot be submitted again.
+   */
+  if (existing.status === "approved") {
+    throw new Error(
+      "You have already completed this task."
+    );
+  }
+
+  /*
+   * Pending submissions cannot be submitted again.
+   */
+  if (existing.status === "pending") {
+    throw new Error(
+      "Your submission is still under review."
+    );
+  }
+
+  /*
+   * Rejected submission.
+   * Check the one-minute retry cooldown.
+   */
+  if (existing.status === "rejected") {
+    const retryAvailableAt =
+      existing.retryAvailableAt;
+
+    if (
+      retryAvailableAt &&
+      Date.now() < retryAvailableAt
+    ) {
+      const remainingSeconds = Math.ceil(
+        (retryAvailableAt - Date.now()) /
+          1000
+      );
+
       throw new Error(
-        "You have already submitted this task."
+        `Please wait ${remainingSeconds} seconds before trying again.`
       );
     }
+
+    /*
+     * Cooldown has finished.
+     * Reuse the existing submission record.
+     */
+    await ctx.db.patch(existing._id, {
+      proofStorageId:
+        args.proofStorageId,
+
+      proofUrl: undefined,
+
+      status: "pending",
+
+      adminNote: undefined,
+
+      submittedAt: Date.now(),
+
+      reviewedAt: undefined,
+
+      reviewedBy: undefined,
+
+      rejectedAt: undefined,
+
+      retryAvailableAt: undefined,
+    });
+
+    return {
+      submissionId: existing._id,
+      status: "pending" as const,
+    };
+  }
+}
 
     // Create submission
     const submissionId =
@@ -275,13 +359,31 @@ export const getMySubmission = query({
       return null;
     }
 
+    // return {
+    //   id: submission._id,
+    //   status: submission.status,
+    //   proofStorageId:
+    //     submission.proofStorageId,
+    //   submittedAt:
+    //     submission.submittedAt,
+    // };
+
+
     return {
-      id: submission._id,
-      status: submission.status,
-      proofStorageId:
-        submission.proofStorageId,
-      submittedAt:
-        submission.submittedAt,
-    };
+  id: submission._id,
+  status: submission.status,
+
+  proofStorageId:
+    submission.proofStorageId,
+
+  submittedAt:
+    submission.submittedAt,
+
+  rejectedAt:
+    submission.rejectedAt,
+
+  retryAvailableAt:
+    submission.retryAvailableAt,
+};
   },
 });

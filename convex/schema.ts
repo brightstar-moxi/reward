@@ -129,7 +129,33 @@ userActivities: defineTable({
   .index("by_day", ["day"])
   .index("by_day_active", ["day", "isActive"]),
 
-  taskSubmissions: defineTable({
+//   taskSubmissions: defineTable({
+//   userId: v.id("users"),
+//   taskId: v.id("tasks"),
+
+//   proofUrl: v.optional(v.string()),
+//   proofStorageId: v.optional(v.id("_storage")),
+
+//   status: v.union(
+//     v.literal("pending"),
+//     v.literal("approved"),
+//     v.literal("rejected")
+//   ),
+
+//   adminNote: v.optional(v.string()),
+
+//   submittedAt: v.number(),
+//   reviewedAt: v.optional(v.number()),
+//   reviewedBy: v.optional(v.id("users")),
+// })
+//   .index("by_user", ["userId"])
+//   .index("by_task", ["taskId"])
+//   .index("by_user_task", ["userId", "taskId"])
+//   .index("by_status", ["status"]),
+
+
+
+taskSubmissions: defineTable({
   userId: v.id("users"),
   taskId: v.id("tasks"),
 
@@ -147,6 +173,10 @@ userActivities: defineTable({
   submittedAt: v.number(),
   reviewedAt: v.optional(v.number()),
   reviewedBy: v.optional(v.id("users")),
+
+  // Retry information after rejection
+  rejectedAt: v.optional(v.number()),
+  retryAvailableAt: v.optional(v.number()),
 })
   .index("by_user", ["userId"])
   .index("by_task", ["taskId"])

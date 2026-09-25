@@ -307,16 +307,39 @@ export const reject = mutation({
     }
 
     // 5. Reject submission
-    await ctx.db.patch(
-      args.submissionId,
-      {
-        status: "rejected",
-        adminNote:
-          args.adminNote?.trim() || undefined,
-        reviewedAt: Date.now(),
-        reviewedBy: admin._id,
-      }
-    );
+    // await ctx.db.patch(
+    //   args.submissionId,
+    //   {
+    //     status: "rejected",
+    //     adminNote:
+    //       args.adminNote?.trim() || undefined,
+    //     reviewedAt: Date.now(),
+    //     reviewedBy: admin._id,
+    //   }
+    // );
+
+
+const now = Date.now();
+
+await ctx.db.patch(
+  args.submissionId,
+  {
+    status: "rejected",
+
+    adminNote:
+      args.adminNote?.trim() || undefined,
+
+    reviewedAt: now,
+
+    reviewedBy: admin._id,
+
+    rejectedAt: now,
+
+    retryAvailableAt:
+      now + 60 * 1000,
+  }
+);
+
 
     return {
       success: true,
