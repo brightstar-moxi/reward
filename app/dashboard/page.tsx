@@ -59,6 +59,10 @@ type DailyTask = {
   retryAvailableAt: number | null;
   adminNote: string | null;
 };
+type ReferralData = {
+  referralCode: string;
+  totalReferrals: number;
+};
 
 type DailyTasksData = {
   currentDay: number;
@@ -91,6 +95,71 @@ const [dailyTasks, setDailyTasks] =
 
 const [tasksLoading, setTasksLoading] = useState(true);
 const [tasksError, setTasksError] = useState("");
+
+
+const [referralData, setReferralData] =
+  useState<ReferralData | null>(null);
+
+const [referralLoading, setReferralLoading] = useState(true);
+
+const [referralError, setReferralError] = useState("");
+
+const [copiedReferral, setCopiedReferral] = useState<
+  "code" | "link" | null
+>(null);
+
+
+useEffect(() => {
+  let cancelled = false;
+
+  async function loadReferrals() {
+    try {
+      const response = await fetch("/api/referrals", {
+        cache: "no-store",
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result.error || "Unable to load referrals."
+        );
+      }
+
+      if (!cancelled) {
+        setReferralData(result);
+        setReferralError("");
+      }
+    } catch (err) {
+      if (!cancelled) {
+        setReferralError(
+          err instanceof Error
+            ? err.message
+            : "Unable to load referrals."
+        );
+      }
+    } finally {
+      if (!cancelled) {
+        setReferralLoading(false);
+      }
+    }
+  }
+
+  loadReferrals();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
+
+async function copyReferral(value: string, type: "code" | "link") {
+  try {
+    await navigator.clipboard.writeText(value);
+    setCopiedReferral(type);
+  } catch {
+    setReferralError("Unable to copy. Please copy the text manually.");
+  }
+}
 
 
 
@@ -136,77 +205,62 @@ useEffect(() => {
 }, []);
 
 
-  useEffect(() => {
-    let cancelled = false;
+ 
+useEffect(() => {
+  let cancelled = false;
 
-    async function loadWallet() {
-      try {
-      //   const response = await fetch("/api/wallet", {
-      //     cache: "no-store",
-      //   });
-
-      //   const result = await response.json();
-
-      //   if (!response.ok) {
-      //     throw new Error(
-      //       result.error || "Unable to load your wallet."
-      //     );
-      //   }
-
-      //   if (!cancelled) {
-      //     setData(result);
-      //     setError("");
-      //   }
-      // } catch (err) {
-      //   if (!cancelled) {
-      //     setError(
-      //       err instanceof Error
-      //         ? err.message
-      //         : "Unable to load your wallet."
-      //     );
-      //   }
-
+  async function loadWallet() {
+    try {
       const [walletResponse, participationResponse] =
-  await Promise.all([
-    fetch("/api/wallet", { cache: "no-store" }),
-    fetch("/api/participation", { cache: "no-store" }),
-  ]);
+        await Promise.all([
+          fetch("/api/wallet", { cache: "no-store" }),
+          fetch("/api/participation", { cache: "no-store" }),
+        ]);
 
-const walletResult = await walletResponse.json();
-const participationResult =
-  await participationResponse.json();
+      const walletResult = await walletResponse.json();
+      const participationResult =
+        await participationResponse.json();
 
-if (!walletResponse.ok) {
-  throw new Error(
-    walletResult.error || "Unable to load your wallet."
-  );
-}
+      if (!walletResponse.ok) {
+        throw new Error(
+          walletResult.error || "Unable to load your wallet."
+        );
+      }
 
-if (!participationResponse.ok) {
-  throw new Error(
-    participationResult.error ||
-      "Unable to load participation data."
-  );
-}
+      if (!participationResponse.ok) {
+        throw new Error(
+          participationResult.error ||
+            "Unable to load participation data."
+        );
+      }
 
-if (!cancelled) {
-  setData(walletResult);
-  setParticipation(participationResult.participation);
-  setError("");
-}
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+      if (!cancelled) {
+        setData(walletResult);
+        setParticipation(participationResult.participation);
+        setError("");
+      }
+    } catch (err) {
+      if (!cancelled) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Unable to load dashboard data."
+        );
+      }
+    } finally {
+      if (!cancelled) {
+        setLoading(false);
       }
     }
+  }
 
-    loadWallet();
+  loadWallet();
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  return () => {
+    cancelled = true;
+  };
+}, []);
+
 
   const wallet = data?.wallet;
   const balance = wallet?.balance ?? 0;
@@ -235,12 +289,16 @@ if (!cancelled) {
       description: "Earned today",
       icon: CheckCircle2,
     },
-    {
-      title: "Referrals",
-      value: "6",
-      description: "Active referrals",
-      icon: Users,
-    },
+   {
+  title: "Referrals",
+  value: referralLoading
+    ? "Loading..."
+    : referralData
+      ? String(referralData.totalReferrals)
+      : "Unavailable",
+  description: "Registered referrals",
+  icon: Users,
+},
     {
   title: "Current Day",
   value: loading
@@ -328,6 +386,98 @@ if (!cancelled) {
           );
         })}
       </section>
+
+
+{/* Referral section */}
+<section className="rounded-2xl border border-gray-200 bg-white p-6">
+  <div className="flex items-center gap-3">
+    <div className="rounded-xl bg-green-50 p-3 text-green-600">
+      <Users size={22} />
+    </div>
+
+    <div>
+      <h3 className="font-semibold text-gray-900">
+        Your referral program
+      </h3>
+      <p className="text-sm text-gray-500">
+        Invite friends using your personal referral link.
+      </p>
+    </div>
+  </div>
+
+  {referralLoading ? (
+    <p className="mt-5 text-sm text-gray-500">
+      Loading referral information...
+    </p>
+  ) : referralError || !referralData ? (
+    <p role="alert" className="mt-5 text-sm text-red-600">
+      {referralError || "Referral information is unavailable."}
+    </p>
+  ) : (
+    <>
+      <div className="mt-5 rounded-xl bg-gray-50 p-4">
+        <p className="text-sm text-gray-500">
+          Total registered referrals
+        </p>
+        <p className="mt-1 text-2xl font-bold text-gray-900">
+          {referralData.totalReferrals}
+        </p>
+      </div>
+
+      <div className="mt-5">
+        <label className="text-sm font-medium text-gray-700">
+          Your referral code
+        </label>
+
+        <div className="mt-2 flex gap-2">
+          <input
+            readOnly
+            value={referralData.referralCode}
+            className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm"
+          />
+
+          <button
+            type="button"
+            onClick={() =>
+              copyReferral(referralData.referralCode, "code")
+            }
+            className="rounded-xl bg-green-600 px-4 py-3 text-sm font-semibold text-white hover:bg-green-700"
+          >
+            {copiedReferral === "code" ? "Copied" : "Copy"}
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-5">
+        <label className="text-sm font-medium text-gray-700">
+          Your referral link
+        </label>
+
+        <div className="mt-2 flex gap-2">
+          <input
+            readOnly
+            value={`${window.location.origin}/register?ref=${encodeURIComponent(referralData.referralCode)}`}
+            className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm"
+          />
+
+          <button
+            type="button"
+            onClick={() =>
+              copyReferral(
+                `${window.location.origin}/signup?ref=${encodeURIComponent(referralData.referralCode)}`,
+                "link"
+              )
+            }
+            className="rounded-xl bg-green-600 px-4 py-3 text-sm font-semibold text-white hover:bg-green-700"
+          >
+            {copiedReferral === "link" ? "Copied" : "Copy"}
+          </button>
+        </div>
+      </div>
+    </>
+  )}
+</section>
+
 
       {/* Main grid */}
       <section className="grid gap-6 lg:grid-cols-3">
