@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Wallet,
   CheckCircle2,
@@ -40,40 +41,82 @@ const formatNaira = (amount: number) =>
     maximumFractionDigits: 2,
   }).format(amount);
 
+
+
+  type ParticipationData = {
+  currentDay: number;
+  totalDays: number;
+  registrationDate: string;
+  todayDate: string;
+  completedCalendarDays: number;
+  isDay100: boolean;
+};
+
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [participation, setParticipation] =
+  useState<ParticipationData | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadWallet() {
       try {
-        const response = await fetch("/api/wallet", {
-          cache: "no-store",
-        });
+      //   const response = await fetch("/api/wallet", {
+      //     cache: "no-store",
+      //   });
 
-        const result = await response.json();
+      //   const result = await response.json();
 
-        if (!response.ok) {
-          throw new Error(
-            result.error || "Unable to load your wallet."
-          );
-        }
+      //   if (!response.ok) {
+      //     throw new Error(
+      //       result.error || "Unable to load your wallet."
+      //     );
+      //   }
 
-        if (!cancelled) {
-          setData(result);
-          setError("");
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : "Unable to load your wallet."
-          );
-        }
+      //   if (!cancelled) {
+      //     setData(result);
+      //     setError("");
+      //   }
+      // } catch (err) {
+      //   if (!cancelled) {
+      //     setError(
+      //       err instanceof Error
+      //         ? err.message
+      //         : "Unable to load your wallet."
+      //     );
+      //   }
+
+      const [walletResponse, participationResponse] =
+  await Promise.all([
+    fetch("/api/wallet", { cache: "no-store" }),
+    fetch("/api/participation", { cache: "no-store" }),
+  ]);
+
+const walletResult = await walletResponse.json();
+const participationResult =
+  await participationResponse.json();
+
+if (!walletResponse.ok) {
+  throw new Error(
+    walletResult.error || "Unable to load your wallet."
+  );
+}
+
+if (!participationResponse.ok) {
+  throw new Error(
+    participationResult.error ||
+      "Unable to load participation data."
+  );
+}
+
+if (!cancelled) {
+  setData(walletResult);
+  setParticipation(participationResult.participation);
+  setError("");
+}
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -122,11 +165,17 @@ export default function DashboardPage() {
       icon: Users,
     },
     {
-      title: "Current Day",
-      value: "Day 12",
-      description: "Keep your streak going",
-      icon: CalendarDays,
-    },
+  title: "Current Day",
+  value: loading
+    ? "Loading..."
+    : participation
+      ? `Day ${participation.currentDay}`
+      : "Unavailable",
+  description: participation
+    ? `Day ${participation.currentDay} of 100`
+    : "Your participation progress",
+  icon: CalendarDays,
+},
   ];
 
   return (
@@ -145,6 +194,13 @@ export default function DashboardPage() {
           Complete today's activities, earn rewards,
           and keep progressing toward your withdrawal.
         </p>
+        <Link
+  href="/dashboard/earnings"
+  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
+>
+  View earnings history
+  <ArrowRight size={16} />
+</Link>
       </section>
 
       {error && (
