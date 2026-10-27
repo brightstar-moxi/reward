@@ -42,6 +42,32 @@ const formatNaira = (amount: number) =>
   }).format(amount);
 
 
+type DailyTask = {
+  _id: string;
+  title: string;
+  description: string;
+  reward: number;
+  targetUrl?: string;
+  requiresProof: boolean;
+  instructions: string;
+  submissionStatus:
+    | "not_started"
+    | "pending"
+    | "approved"
+    | "rejected";
+  submittedAt: number | null;
+  retryAvailableAt: number | null;
+  adminNote: string | null;
+};
+
+type DailyTasksData = {
+  currentDay: number;
+  totalDays: number;
+  totalTasks: number;
+  completedTasks: number;
+  tasks: DailyTask[];
+};
+
 
   type ParticipationData = {
   currentDay: number;
@@ -58,6 +84,57 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
   const [participation, setParticipation] =
   useState<ParticipationData | null>(null);
+
+  
+const [dailyTasks, setDailyTasks] =
+  useState<DailyTasksData | null>(null);
+
+const [tasksLoading, setTasksLoading] = useState(true);
+const [tasksError, setTasksError] = useState("");
+
+
+
+useEffect(() => {
+  let cancelled = false;
+
+  async function loadDailyTasks() {
+    try {
+      const response = await fetch("/api/dashboard/tasks", {
+        cache: "no-store",
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result.error || "Unable to load today's tasks."
+        );
+      }
+
+      if (!cancelled) {
+        setDailyTasks(result);
+        setTasksError("");
+      }
+    } catch (error) {
+      if (!cancelled) {
+        setTasksError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load today's tasks."
+        );
+      }
+    } finally {
+      if (!cancelled) setTasksLoading(false);
+    }
+  }
+
+  loadDailyTasks();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
+
 
   useEffect(() => {
     let cancelled = false;
@@ -256,7 +333,7 @@ if (!cancelled) {
       <section className="grid gap-6 lg:grid-cols-3">
         {/* Daily activity */}
         <div className="rounded-2xl border border-gray-200 bg-white p-6 lg:col-span-2">
-          <div className="flex items-center justify-between">
+          {/* <div className="flex items-center justify-between">
             <div>
               <h3 className="font-semibold text-gray-900">
                 Today's activities
@@ -320,7 +397,119 @@ if (!cancelled) {
                 )}
               </div>
             ))}
+          </div> */}
+
+
+
+
+
+<div className="flex items-center justify-between gap-3">
+  <div>
+    <h3 className="font-semibold text-gray-900">
+      Today's activities
+    </h3>
+
+    <p className="mt-1 text-sm text-gray-500">
+      {dailyTasks
+        ? `Day ${dailyTasks.currentDay} of ${dailyTasks.totalDays}`
+        : "Your daily tasks"}
+    </p>
+  </div>
+
+  <span className="shrink-0 rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700">
+    {tasksLoading
+      ? "Loading..."
+      : `${dailyTasks?.completedTasks ?? 0} / ${
+          dailyTasks?.totalTasks ?? 0
+        } completed`}
+  </span>
+</div>
+
+{tasksError && (
+  <p role="alert" className="mt-4 text-sm text-red-600">
+    {tasksError}
+  </p>
+)}
+
+{tasksLoading ? (
+  <p className="mt-6 text-sm text-gray-500">
+    Loading today's tasks...
+  </p>
+) : dailyTasks?.tasks.length ? (
+  <div className="mt-6 space-y-3">
+    {dailyTasks.tasks.map((task, index) => {
+      const approved = task.submissionStatus === "approved";
+      const pending = task.submissionStatus === "pending";
+      const rejected = task.submissionStatus === "rejected";
+
+      return (
+        <div
+          key={task._id}
+          className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 p-4"
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            <div
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                approved
+                  ? "bg-green-100 text-green-600"
+                  : "bg-gray-100 text-gray-500"
+              }`}
+            >
+              {approved ? (
+                <CheckCircle2 size={18} />
+              ) : (
+                <span className="text-xs font-semibold">
+                  {index + 1}
+                </span>
+              )}
+            </div>
+
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-800">
+                {task.title}
+              </p>
+
+              <p className="mt-1 text-xs text-gray-500">
+                {approved
+                  ? "Reward approved"
+                  : pending
+                    ? "Awaiting review"
+                    : rejected
+                      ? "Submission rejected"
+                      : "Not completed"}
+                {" · "}
+                {new Intl.NumberFormat("en-NG", {
+                  style: "currency",
+                  currency: "NGN",
+                  maximumFractionDigits: 2,
+                }).format(task.reward)}
+              </p>
+            </div>
           </div>
+
+          {!approved && (
+            <Link
+              href={`/dashboard/tasks/${task._id}`}
+              className="shrink-0 text-xs font-semibold text-green-600 hover:text-green-700"
+            >
+              {pending ? "View status" : rejected ? "Retry" : "Start"}
+              <ArrowRight
+                size={14}
+                className="ml-1 inline"
+              />
+            </Link>
+          )}
+        </div>
+      );
+    })}
+  </div>
+) : (
+  <p className="mt-6 rounded-xl bg-gray-50 p-5 text-sm text-gray-500">
+    No active tasks are available for this participation day.
+  </p>
+)}
+
+
         </div>
 
         {/* Withdrawal */}
