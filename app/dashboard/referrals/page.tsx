@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+// import { useQuery } from "convex/react";
+// import { api } from "@/convex/_generated/api";
 import {
   Copy,
   Check,
@@ -15,61 +15,102 @@ interface Referral {
   id: string;
   name: string;
   status: "active" | "suspended";
-  createdAt: number;
+  joinedAt: number;
 }
 
 interface User {
   referralCode: string;
 }
 
+interface ReferralData {
+  referralCode: string;
+  totalReferrals: number;
+  referrals: Referral[];
+}
+
 export default function ReferralsPage() {
 const [user, setUser] = useState<User | null>(null);
 const [loading, setLoading] = useState(true);
 const [copied, setCopied] = useState(false);
+const [referralData, setReferralData] =
+  useState<ReferralData | null>(null);
+const [error, setError] = useState("");
+const [siteOrigin, setSiteOrigin] = useState("");
 
-const referrals = useQuery(
-  api.referrals.getMyReferrals,
-  user?.referralCode
-    ? {
-        referralCode: user.referralCode,
-      }
-    : "skip"
-);
+  // useEffect(() => {
+  //   const loadReferrals = async () => {
+  //     try {
+  //       const response = await fetch("/api/auth/me", {
+  //         credentials: "include",
+  //         cache: "no-store",
+  //       });
 
-  useEffect(() => {
-    const loadReferrals = async () => {
-      try {
-        const response = await fetch("/api/auth/me", {
-          credentials: "include",
-          cache: "no-store",
-        });
+  //       if (!response.ok) {
+  //         return;
+  //       }
 
-        if (!response.ok) {
-          return;
-        }
+  //       const data = await response.json();
 
-        const data = await response.json();
+  //       setUser(data.user);
 
-        setUser(data.user);
+  //       if (data.user?.referralCode) {
+  //         // Referral data will be connected to Convex next.
+  //       }
+  //     } catch (error) {
+  //       console.error(
+  //         "Failed to load referrals:",
+  //         error
+  //       );
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
 
-        if (data.user?.referralCode) {
-          // Referral data will be connected to Convex next.
-        }
-      } catch (error) {
-        console.error(
-          "Failed to load referrals:",
-          error
+  //   loadReferrals();
+  // }, []);
+
+
+useEffect(() => {
+  setSiteOrigin(window.location.origin);
+
+  async function loadReferrals() {
+    try {
+      const response = await fetch("/api/referrals", {
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result.error || "Unable to load referrals."
         );
-      } finally {
-        setLoading(false);
       }
-    };
 
-    loadReferrals();
-  }, []);
+      setReferralData(result);
+      setUser({ referralCode: result.referralCode });
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load referrals."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  const referralLink = user
-    ? `${window.location.origin}/signup?ref=${user.referralCode}`
+  loadReferrals();
+}, []);
+
+
+
+const referralLink =
+  user && siteOrigin
+    ? `${siteOrigin}/signup?ref=${encodeURIComponent(
+        user.referralCode
+      )}`
     : "";
 
   const copyLink = async () => {
@@ -97,6 +138,7 @@ const referrals = useQuery(
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div>
+
         <h1 className="text-2xl font-bold text-gray-900">
           Referrals
         </h1>
@@ -106,7 +148,14 @@ const referrals = useQuery(
           qualifying referrals.
         </p>
       </div>
-
+{error && (
+  <p
+    role="alert"
+    className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+  >
+    {error}
+  </p>
+)}
       {/* Referral link */}
       <section className="rounded-2xl border border-green-100 bg-green-50 p-6">
         <div className="flex items-start gap-4">
@@ -166,7 +215,7 @@ const referrals = useQuery(
           </p>
 
           <p className="mt-1 text-2xl font-bold text-gray-900">
-          {referrals?.length ?? 0}
+        {referralData?.totalReferrals ?? 0}
           </p>
         </div>
 
@@ -181,12 +230,9 @@ const referrals = useQuery(
           </p>
 
           <p className="mt-1 text-2xl font-bold text-gray-900">
-            {
-              (referrals ??[]).filter(
-                (referral) =>
-                  referral.status === "active"
-              ).length
-            }
+           {(referralData?.referrals ?? []).filter(
+  (referral) => referral.status === "active"
+).length}
           </p>
         </div>
 
@@ -222,7 +268,7 @@ const referrals = useQuery(
           </p>
         </div>
 
-        {!referrals || referrals.length === 0 ? (
+        {!referralData || referralData.referrals.length === 0 ? (
           <div className="p-10 text-center">
             <Users
               size={32}
@@ -239,7 +285,7 @@ const referrals = useQuery(
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
-           {(referrals ?? []).map((referral) => (
+         {(referralData?.referrals ?? []).map((referral) => (
               <div
                 key={referral.id}
                 className="flex items-center justify-between p-5"
@@ -251,9 +297,7 @@ const referrals = useQuery(
 
                   <p className="mt-1 text-xs text-gray-400">
                     Joined{" "}
-                    {new Date(
-                      referral.createdAt
-                    ).toLocaleDateString()}
+                    {new Date(referral.joinedAt).toLocaleDateString()}
                   </p>
                 </div>
 

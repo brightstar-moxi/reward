@@ -176,53 +176,51 @@ export const getByEmail = query({
 
 
 export const getMyReferrals = query({
-    args: {
-        token: v.string(),
-    },
+  args: {
+    token: v.string(),
+  },
 
-    handler: async (ctx, args) => {
-        // Hash the session token.
-        const tokenBytes = new TextEncoder().encode(args.token);
+  handler: async (ctx, args) => {
+    const tokenBytes = new TextEncoder().encode(args.token);
+    const hash = await crypto.subtle.digest("SHA-256", tokenBytes);
 
-        const hash = await crypto.subtle.digest(
-            "SHA-256",
-            tokenBytes
-        );
+    const tokenHash = Array.from(new Uint8Array(hash))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
 
-        const tokenHash = Array.from(new Uint8Array(hash))
-            .map((byte) => byte.toString(16).padStart(2, "0"))
-            .join("");
+    const session = await ctx.db
+      .query("sessions")
+      .withIndex("by_token_hash", (q) =>
+        q.eq("tokenHash", tokenHash)
+      )
+      .unique();
 
-        // Find the user's session.
-        const session = await ctx.db
-            .query("sessions")
-            .withIndex("by_token_hash", (q) =>
-                q.eq("tokenHash", tokenHash)
-            )
-            .unique();
+    if (!session || session.expiresAt <= Date.now()) {
+      throw new Error("Your session is invalid or expired.");
+    }
 
-        if (!session || session.expiresAt <= Date.now()) {
-            throw new Error("Your session is invalid or expired.");
-        }
+    const user = await ctx.db.get(session.userId);
 
-        // Find the logged-in user.
-        const user = await ctx.db.get(session.userId);
+    if (!user || user.status !== "active") {
+      throw new Error("Your account is unavailable.");
+    }
 
-        if (!user || user.status !== "active") {
-            throw new Error("Your account is unavailable.");
-        }
+    const referrals = await ctx.db
+      .query("users")
+      .withIndex("by_referred_by", (q) =>
+        q.eq("referredBy", user.referralCode)
+      )
+      .collect();
 
-        // Count users who registered through this user's code.
-        const referrals = await ctx.db
-            .query("users")
-            .withIndex("by_referred_by", (q) =>
-                q.eq("referredBy", user.referralCode)
-            )
-            .collect();
-
-        return {
-            referralCode: user.referralCode,
-            totalReferrals: referrals.length,
-        };
-    },
+    return {
+      referralCode: user.referralCode,
+      totalReferrals: referrals.length,
+      referrals: referrals.map((referral) => ({
+        id: referral._id,
+        name: referral.name,
+        joinedAt: referral.createdAt,
+        status: referral.status,
+      })),
+    };
+  },
 });

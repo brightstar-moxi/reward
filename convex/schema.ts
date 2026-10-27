@@ -243,6 +243,49 @@ reference: v.optional(v.string()),
   .index("by_user", ["userId"])
   .index("by_submission", ["submissionId"])
   .index("by_reference", ["reference"]),
+
+
+
+
+  
+  withdrawals: defineTable({
+    userId: v.id("users"),
+
+    amount: v.number(),
+
+    status: v.union(
+      v.literal("pending"),
+      v.literal("processing"),
+      v.literal("paid"),
+      v.literal("rejected")
+    ),
+
+    bankName: v.string(),
+    accountName: v.string(),
+    accountNumber: v.string(),
+
+    adminNote: v.optional(v.string()),
+    paymentReference: v.optional(v.string()),
+
+    requestedAt: v.number(),
+    reviewedAt: v.optional(v.number()),
+    reviewedBy: v.optional(v.id("users")),
+    paidAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_status", ["status"])
+    .index("by_user_status", ["userId", "status"]),
+
+  dailyPenalties: defineTable({
+    userId: v.id("users"),
+    dayKey: v.string(),
+    amount: v.number(),
+    reason: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_day", ["userId", "dayKey"]),
+
 });
 
 
