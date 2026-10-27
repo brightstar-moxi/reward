@@ -369,21 +369,14 @@ export const getMySubmission = query({
     // };
 
 
-    return {
+  return {
   id: submission._id,
   status: submission.status,
-
-  proofStorageId:
-    submission.proofStorageId,
-
-  submittedAt:
-    submission.submittedAt,
-
-  rejectedAt:
-    submission.rejectedAt,
-
-  retryAvailableAt:
-    submission.retryAvailableAt,
+  proofStorageId: submission.proofStorageId,
+  submittedAt: submission.submittedAt,
+  reviewedAt: submission.reviewedAt,
+  rejectedAt: submission.rejectedAt,
+  retryAvailableAt: submission.retryAvailableAt,
 };
   },
 });

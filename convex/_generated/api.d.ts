@@ -18,6 +18,7 @@ import type * as sessions from "../sessions.js";
 import type * as taskSubmissions from "../taskSubmissions.js";
 import type * as tasks from "../tasks.js";
 import type * as users from "../users.js";
+import type * as wallet from "../wallet.js";
 
 import type {
   ApiFromModules,
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   taskSubmissions: typeof taskSubmissions;
   tasks: typeof tasks;
   users: typeof users;
+  wallet: typeof wallet;
 }>;
 
 /**

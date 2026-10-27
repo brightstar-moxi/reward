@@ -183,8 +183,42 @@ taskSubmissions: defineTable({
   .index("by_user_task", ["userId", "taskId"])
   .index("by_status", ["status"]),
 
+wallets: defineTable({
+  userId: v.id("users"),
 
-  walletTransactions: defineTable({
+  balance: v.number(),
+  totalEarned: v.number(),
+  totalWithdrawn: v.number(),
+
+  createdAt: v.number(),
+  updatedAt: v.number(),
+})
+  .index("by_user", ["userId"]),
+//   walletTransactions: defineTable({
+//   userId: v.id("users"),
+
+//   type: v.union(
+//     v.literal("reward"),
+//     v.literal("withdrawal")
+//   ),
+
+//   amount: v.number(),
+
+//   description: v.string(),
+
+//   taskId: v.optional(v.id("tasks")),
+
+//   submissionId: v.optional(
+//     v.id("taskSubmissions")
+//   ),
+
+//   createdAt: v.number(),
+// })
+//   .index("by_user", ["userId"])
+//   .index("by_submission", ["submissionId"]),
+
+
+walletTransactions: defineTable({
   userId: v.id("users"),
 
   type: v.union(
@@ -202,10 +236,13 @@ taskSubmissions: defineTable({
     v.id("taskSubmissions")
   ),
 
+reference: v.optional(v.string()),
+
   createdAt: v.number(),
 })
   .index("by_user", ["userId"])
-  .index("by_submission", ["submissionId"]),
+  .index("by_submission", ["submissionId"])
+  .index("by_reference", ["reference"]),
 });
 
 

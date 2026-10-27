@@ -1,40 +1,134 @@
+"use client";
 
+import { useEffect, useState } from "react";
 import {
   Wallet,
   CheckCircle2,
   Users,
   CalendarDays,
   ArrowRight,
+  ArrowDownLeft,
+  ArrowUpRight,
 } from "lucide-react";
 
-const stats = [
-  {
-    title: "Available Balance",
-    value: "₦3,450",
-    description: "Available for withdrawal",
-    icon: Wallet,
-  },
-  {
-    title: "Today's Earnings",
-    value: "₦200",
-    description: "Earned today",
-    icon: CheckCircle2,
-  },
-  {
-    title: "Referrals",
-    value: "6",
-    description: "Active referrals",
-    icon: Users,
-  },
-  {
-    title: "Current Day",
-    value: "Day 12",
-    description: "Keep your streak going",
-    icon: CalendarDays,
-  },
-];
+type WalletData = {
+  balance: number;
+  totalEarned: number;
+  totalWithdrawn: number;
+};
+
+type Transaction = {
+  _id: string;
+  type: "reward" | "withdrawal";
+  amount: number;
+  description: string;
+  createdAt: number;
+};
+
+type DashboardData = {
+  wallet: WalletData;
+  todaysEarnings: number;
+  transactions: Transaction[];
+};
+
+const MINIMUM_WITHDRAWAL = 10_000;
+
+const formatNaira = (amount: number) =>
+  new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    maximumFractionDigits: 2,
+  }).format(amount);
 
 export default function DashboardPage() {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadWallet() {
+      try {
+        const response = await fetch("/api/wallet", {
+          cache: "no-store",
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            result.error || "Unable to load your wallet."
+          );
+        }
+
+        if (!cancelled) {
+          setData(result);
+          setError("");
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Unable to load your wallet."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadWallet();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const wallet = data?.wallet;
+  const balance = wallet?.balance ?? 0;
+  const todaysEarnings = data?.todaysEarnings ?? 0;
+  const progress = Math.min(
+    (balance / MINIMUM_WITHDRAWAL) * 100,
+    100
+  );
+  const remaining = Math.max(
+    MINIMUM_WITHDRAWAL - balance,
+    0
+  );
+
+  const stats = [
+    {
+      title: "Available Balance",
+      value: loading ? "Loading..." : formatNaira(balance),
+      description: "Available for withdrawal",
+      icon: Wallet,
+    },
+    {
+      title: "Today's Earnings",
+      value: loading
+        ? "Loading..."
+        : formatNaira(todaysEarnings),
+      description: "Earned today",
+      icon: CheckCircle2,
+    },
+    {
+      title: "Referrals",
+      value: "6",
+      description: "Active referrals",
+      icon: Users,
+    },
+    {
+      title: "Current Day",
+      value: "Day 12",
+      description: "Keep your streak going",
+      icon: CalendarDays,
+    },
+  ];
+
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       {/* Welcome */}
@@ -52,6 +146,21 @@ export default function DashboardPage() {
           and keep progressing toward your withdrawal.
         </p>
       </section>
+
+      {error && (
+        <div
+          role="alert"
+          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+        >
+          {error}
+          <button
+            onClick={() => window.location.reload()}
+            className="ml-2 font-semibold underline"
+          >
+            Try again
+          </button>
+        </div>
+      )}
 
       {/* Stats */}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -165,39 +274,137 @@ export default function DashboardPage() {
           </h3>
 
           <p className="mt-1 text-sm text-gray-500">
-            Minimum withdrawal: ₦10,000
+            Minimum withdrawal: {formatNaira(MINIMUM_WITHDRAWAL)}
           </p>
 
           <div className="mt-6">
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between gap-2 text-sm">
               <span className="font-medium text-gray-700">
-                ₦3,450
+                {loading ? "Loading..." : formatNaira(balance)}
               </span>
 
               <span className="text-gray-400">
-                ₦10,000
+                {formatNaira(MINIMUM_WITHDRAWAL)}
               </span>
             </div>
 
             <div className="mt-3 h-3 overflow-hidden rounded-full bg-gray-100">
               <div
-                className="h-full rounded-full bg-green-500"
-                style={{ width: "34.5%" }}
+                className="h-full rounded-full bg-green-500 transition-all"
+                style={{ width: `${progress}%` }}
               />
             </div>
 
             <p className="mt-3 text-xs text-gray-400">
-              ₦6,550 remaining before withdrawal.
+              {loading
+                ? "Calculating your progress..."
+                : remaining > 0
+                  ? `${formatNaira(remaining)} remaining before withdrawal.`
+                  : "You have reached the minimum withdrawal balance."}
             </p>
           </div>
 
           <button
-            disabled
-            className="mt-6 w-full rounded-xl bg-gray-100 px-4 py-3 text-sm font-semibold text-gray-400"
+            disabled={loading || balance < MINIMUM_WITHDRAWAL}
+            className="mt-6 w-full rounded-xl bg-gray-100 px-4 py-3 text-sm font-semibold text-gray-400 disabled:cursor-not-allowed"
           >
-            Withdrawal locked
+            {loading
+              ? "Loading wallet..."
+              : balance >= MINIMUM_WITHDRAWAL
+                ? "Eligible for withdrawal"
+                : "Withdrawal locked"}
           </button>
         </div>
+      </section>
+
+      {/* Recent transactions */}
+      <section className="rounded-2xl border border-gray-200 bg-white p-6">
+        <div>
+          <h3 className="font-semibold text-gray-900">
+            Recent transactions
+          </h3>
+
+          <p className="mt-1 text-sm text-gray-500">
+            Your latest wallet rewards and withdrawals.
+          </p>
+        </div>
+
+        {loading ? (
+          <p className="mt-6 text-sm text-gray-500">
+            Loading transactions...
+          </p>
+        ) : data?.transactions.length ? (
+          <div className="mt-5 divide-y divide-gray-100">
+            {data.transactions.map((transaction) => {
+              const isReward = transaction.type === "reward";
+
+              return (
+                <div
+                  key={transaction._id}
+                  className="flex items-center justify-between gap-4 py-4"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div
+                      className={`rounded-xl p-3 ${
+                        isReward
+                          ? "bg-green-50 text-green-600"
+                          : "bg-orange-50 text-orange-600"
+                      }`}
+                    >
+                      {isReward ? (
+                        <ArrowDownLeft size={20} />
+                      ) : (
+                        <ArrowUpRight size={20} />
+                      )}
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-gray-800">
+                        {transaction.description}
+                      </p>
+
+                      <p className="mt-1 text-xs text-gray-400">
+                        {new Date(
+                          transaction.createdAt
+                        ).toLocaleString("en-NG", {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                          timeZone: "Africa/Lagos",
+                        })}
+                      </p>
+                    </div>
+                  </div>
+
+                  <p
+                    className={`shrink-0 text-sm font-semibold ${
+                      isReward
+                        ? "text-green-600"
+                        : "text-gray-800"
+                    }`}
+                  >
+                    {isReward ? "+" : "-"}
+                    {formatNaira(transaction.amount)}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-6 rounded-xl bg-gray-50 p-6 text-center">
+            <Wallet
+              size={28}
+              className="mx-auto text-gray-400"
+            />
+
+            <p className="mt-3 text-sm font-medium text-gray-700">
+              No transactions yet
+            </p>
+
+            <p className="mt-1 text-xs text-gray-500">
+              Approved task rewards will appear here.
+            </p>
+          </div>
+        )}
       </section>
     </div>
   );
