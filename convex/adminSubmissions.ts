@@ -851,6 +851,104 @@ export const reject = mutation({
   },
 });
 
+
+function getNigeriaDayStart(timestamp: number): number {
+  const nigeriaOffset = 60 * 60 * 1000;
+  const date = new Date(timestamp + nigeriaOffset);
+
+  return (
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate()
+    ) - nigeriaOffset
+  );
+}
+
+
+
+function getParticipationDay(
+  createdAt: number,
+  timestamp: number
+): number {
+  const dayLength = 24 * 60 * 60 * 1000;
+
+  const registrationDay =
+    getNigeriaDayStart(createdAt);
+
+  const currentCalendarDay =
+    getNigeriaDayStart(timestamp);
+
+  return (
+    Math.floor(
+      (currentCalendarDay - registrationDay) /
+        dayLength
+    ) + 1
+  );
+}
+  
+async function updateUserActivity(
+  ctx: any,
+  userId: any,
+  day: number,
+  now: number
+) {
+  // Get all active tasks assigned to this day.
+  const tasks = await ctx.db
+    .query("tasks")
+    .withIndex("by_day_active", (q: any) =>
+      q.eq("day", day).eq("isActive", true)
+    )
+    .collect();
+
+  // A day with no active tasks cannot qualify as completed.
+  if (tasks.length === 0) return;
+
+  // Every active task must have an approved submission.
+  for (const task of tasks) {
+    const submission = await ctx.db
+      .query("taskSubmissions")
+      .withIndex("by_user_task", (q: any) =>
+        q.eq("userId", userId).eq("taskId", task._id)
+      )
+      .unique();
+
+    if (!submission || submission.status !== "approved") {
+      return;
+    }
+  }
+
+  // Find the user's activity record for this day.
+  const activity = await ctx.db
+    .query("userActivities")
+    .withIndex("by_user_day", (q: any) =>
+      q.eq("userId", userId).eq("day", day)
+    )
+    .unique();
+
+  if (activity) {
+    if (activity.status !== "completed") {
+      await ctx.db.patch(activity._id, {
+        status: "completed",
+        completedAt: now,
+        updatedAt: now,
+      });
+    }
+    return;
+  }
+
+  // Create the completed activity record.
+  await ctx.db.insert("userActivities", {
+    userId,
+    day,
+    status: "completed",
+    completedAt: now,
+    createdAt: now,
+    updatedAt: now,
+  });
+}
+
+
 export const reviewSubmission = mutation({
   args: {
     token: v.string(),
@@ -901,19 +999,43 @@ export const reviewSubmission = mutation({
       };
     }
 
-    await creditTaskReward(ctx, submission, task, now);
+    // await creditTaskReward(ctx, submission, task, now);
 
-    await ctx.db.patch(args.submissionId, {
-      status: "approved",
-      adminNote: args.adminNote?.trim() || undefined,
-      reviewedAt: now,
-      reviewedBy: admin._id,
-    });
+    // await ctx.db.patch(args.submissionId, {
+    //   status: "approved",
+    //   adminNote: args.adminNote?.trim() || undefined,
+    //   reviewedAt: now,
+    //   reviewedBy: admin._id,
+    // });
 
-    return {
-      success: true,
-      status: "approved",
-      reward: task.reward,
-    };
+    // return {
+    //   success: true,
+    //   status: "approved",
+    //   reward: task.reward,
+    // };
+
+    
+await creditTaskReward(ctx, submission, task, now);
+
+await ctx.db.patch(args.submissionId, {
+  status: "approved",
+  adminNote: args.adminNote?.trim() || undefined,
+  reviewedAt: now,
+  reviewedBy: admin._id,
+});
+
+await updateUserActivity(
+  ctx,
+  submission.userId,
+  task.day,
+  now
+);
+
+return {
+  success: true,
+  status: "approved",
+  reward: task.reward,
+};
+
   },
 });
