@@ -11,6 +11,7 @@
 import type * as admin from "../admin.js";
 import type * as adminSubmissions from "../adminSubmissions.js";
 import type * as dailyActivities from "../dailyActivities.js";
+import type * as dailyPenalties from "../dailyPenalties.js";
 import type * as participation from "../participation.js";
 import type * as referrals from "../referrals.js";
 import type * as seed from "../seed.js";
@@ -20,6 +21,7 @@ import type * as taskSubmissions from "../taskSubmissions.js";
 import type * as tasks from "../tasks.js";
 import type * as users from "../users.js";
 import type * as wallet from "../wallet.js";
+import type * as withdrawals from "../withdrawals.js";
 
 import type {
   ApiFromModules,
@@ -31,6 +33,7 @@ declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   adminSubmissions: typeof adminSubmissions;
   dailyActivities: typeof dailyActivities;
+  dailyPenalties: typeof dailyPenalties;
   participation: typeof participation;
   referrals: typeof referrals;
   seed: typeof seed;
@@ -40,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   tasks: typeof tasks;
   users: typeof users;
   wallet: typeof wallet;
+  withdrawals: typeof withdrawals;
 }>;
 
 /**

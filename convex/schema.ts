@@ -221,10 +221,14 @@ wallets: defineTable({
 walletTransactions: defineTable({
   userId: v.id("users"),
 
-  type: v.union(
-    v.literal("reward"),
-    v.literal("withdrawal")
-  ),
+
+type: v.union(
+  v.literal("reward"),
+  v.literal("withdrawal"),
+  v.literal("penalty"),
+  v.literal("refund")
+),
+
 
   amount: v.number(),
 
