@@ -601,7 +601,7 @@ async function hashToken(token: string) {
     .join("");
 }
 
-async function authenticateAdmin(ctx: any, token: string) {
+export async function authenticateAdmin(ctx: any, token: string) {
   const tokenHash = await hashToken(token);
 
   const session = await ctx.db
