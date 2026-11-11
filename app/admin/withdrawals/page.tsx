@@ -218,6 +218,11 @@ export default function AdminWithdrawalsPage() {
 
       const data = await response.json();
 
+      <WithdrawalFinancialSummary
+  withdrawals={withdrawals}
+  formatNaira={formatNaira}
+/>
+
       if (!response.ok || !data.success) {
         throw new Error(
           data.message || "Unable to load withdrawal records."
@@ -268,6 +273,73 @@ export default function AdminWithdrawalsPage() {
       return matchesFilter && matchesSearch;
     });
   }, [withdrawals, activeFilter, search]);
+
+
+  const handleAction = async (
+  action: "startProcessing" | "markPaid" | "rejectWithdrawal",
+  withdrawalId: string
+) => {
+  let paymentReference = "";
+  let adminNote = "";
+
+  if (action === "markPaid") {
+    paymentReference = window.prompt(
+      "Enter the bank transfer payment reference:"
+    )?.trim() ?? "";
+
+    if (!paymentReference) return;
+  }
+
+  if (action === "rejectWithdrawal") {
+    adminNote = window.prompt(
+      "Enter the reason for rejecting this withdrawal:"
+    )?.trim() ?? "";
+
+    if (!adminNote) return;
+  }
+
+  const confirmed = window.confirm(
+    action === "startProcessing"
+      ? "Start processing this withdrawal?"
+      : action === "markPaid"
+        ? "Confirm that you have transferred the money to the user's bank account?"
+        : "Reject this withdrawal and refund the user?"
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const response = await fetch("/api/admin/withdrawals/action", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        action,
+        withdrawalId,
+        ...(paymentReference && { paymentReference }),
+        ...(adminNote && { adminNote }),
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || "Action failed.");
+    }
+
+    alert("Withdrawal updated successfully.");
+
+    await fetchWithdrawals();
+  } catch (error) {
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Unable to update withdrawal."
+    );
+  }
+};
 
   return (
     <main className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
@@ -395,6 +467,7 @@ export default function AdminWithdrawalsPage() {
                     <th className="px-4 py-3">Bank Details</th>
                     <th className="px-4 py-3">Date</th>
                     <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Actions</th>
                   </tr>
                 </thead>
 
@@ -417,7 +490,7 @@ export default function AdminWithdrawalsPage() {
                         {formatNaira(withdrawal.amount)}
                       </td>
 
-                      <td className="px-4 py-4">
+                      {/* <td className="px-4 py-4">
                         <p className="font-medium text-slate-800">
                           {withdrawal.bankName}
                         </p>
@@ -427,7 +500,32 @@ export default function AdminWithdrawalsPage() {
                         <p className="text-xs text-slate-500">
                           {withdrawal.accountNumber}
                         </p>
-                      </td>
+                      </td> */}
+                      <td className="px-4 py-4">
+  <p className="font-medium text-slate-800">
+    {withdrawal.bankName}
+  </p>
+
+  <p className="text-xs text-slate-500">
+    {withdrawal.accountName}
+  </p>
+
+  <p className="text-xs text-slate-500">
+    {withdrawal.accountNumber}
+  </p>
+
+  {withdrawal.paymentReference && (
+    <p className="mt-1 text-xs text-green-700">
+      Reference: {withdrawal.paymentReference}
+    </p>
+  )}
+
+  {withdrawal.adminNote && (
+    <p className="mt-1 text-xs text-red-600">
+      Rejection reason: {withdrawal.adminNote}
+    </p>
+  )}
+</td>
 
                       <td className="px-4 py-4 text-slate-600">
                         {formatDate(withdrawal.requestedAt)}
@@ -436,6 +534,43 @@ export default function AdminWithdrawalsPage() {
                       <td className="px-4 py-4">
                         <StatusBadge status={withdrawal.status} />
                       </td>
+                      <td className="px-4 py-4">
+  <div className="flex flex-wrap gap-2">
+    {withdrawal.status === "pending" && (
+      <button
+        onClick={() =>
+          handleAction("startProcessing", withdrawal._id)
+        }
+        className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700"
+      >
+        Start Processing
+      </button>
+    )}
+
+    {withdrawal.status === "processing" && (
+      <button
+        onClick={() =>
+          handleAction("markPaid", withdrawal._id)
+        }
+        className="rounded-lg bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700"
+      >
+        Mark as Paid
+      </button>
+    )}
+
+    {(withdrawal.status === "pending" ||
+      withdrawal.status === "processing") && (
+      <button
+        onClick={() =>
+          handleAction("rejectWithdrawal", withdrawal._id)
+        }
+        className="rounded-lg bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700"
+      >
+        Reject
+      </button>
+    )}
+  </div>
+</td>
                     </tr>
                   ))}
                 </tbody>
@@ -451,6 +586,89 @@ export default function AdminWithdrawalsPage() {
     </main>
   );
 }
+
+// function SummaryCard({
+//   title,
+//   value,
+//   icon,
+// }: {
+//   title: string;
+//   value: number;
+//   icon: React.ReactNode;
+// }) {
+//   return (
+//     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+//       <div className="mb-4 flex items-center justify-between">
+//         <p className="text-sm text-slate-500">{title}</p>
+//         <span className="text-blue-600">{icon}</span>
+//       </div>
+
+//       <p className="text-2xl font-bold text-slate-900">{value}</p>
+   
+//     </div>
+    
+//   );
+  
+// }
+
+// {/* Withdrawal Financial Summary */}
+// <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5">
+//   <h2 className="mb-3 font-semibold text-slate-800">
+//     Withdrawal Financial Summary
+//   </h2>
+
+//   <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+//     <div>
+//       <p className="text-sm text-slate-500">Pending Amount</p>
+//       <p className="text-xl font-bold text-amber-600">
+//         {formatNaira(
+//           withdrawals
+//             .filter((w) => w.status === "pending")
+//             .reduce((sum, w) => sum + w.amount, 0)
+//         )}
+//       </p>
+//     </div>
+
+//     <div>
+//       <p className="text-sm text-slate-500">Processing Amount</p>
+//       <p className="text-xl font-bold text-blue-600">
+//         {formatNaira(
+//           withdrawals
+//             .filter((w) => w.status === "processing")
+//             .reduce((sum, w) => sum + w.amount, 0)
+//         )}
+//       </p>
+//     </div>
+
+//     <div>
+//       <p className="text-sm text-slate-500">Total Paid</p>
+//       <p className="text-xl font-bold text-green-600">
+//         {formatNaira(
+//           withdrawals
+//             .filter((w) => w.status === "paid")
+//             .reduce((sum, w) => sum + w.amount, 0)
+//         )}
+//       </p>
+//     </div>
+//   </div>
+// </div>
+
+// function StatusBadge({ status }: { status: WithdrawalStatus }) {
+//   const styles: Record<WithdrawalStatus, string> = {
+//     pending: "bg-amber-100 text-amber-700",
+//     processing: "bg-blue-100 text-blue-700",
+//     paid: "bg-green-100 text-green-700",
+//     rejected: "bg-red-100 text-red-700",
+//   };
+
+//   return (
+//     <span
+//       className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${styles[status]}`}
+//     >
+//       {status}
+//     </span>
+//   );
+// }
 
 function SummaryCard({
   title,
@@ -469,6 +687,57 @@ function SummaryCard({
       </div>
 
       <p className="text-2xl font-bold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function WithdrawalFinancialSummary({
+  withdrawals,
+  formatNaira,
+}: {
+  withdrawals: Withdrawal[];
+  formatNaira: (amount: number) => string;
+}) {
+  return (
+    <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5">
+      <h2 className="mb-3 font-semibold text-slate-800">
+        Withdrawal Financial Summary
+      </h2>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div>
+          <p className="text-sm text-slate-500">Pending Amount</p>
+          <p className="text-xl font-bold text-amber-600">
+            {formatNaira(
+              withdrawals
+                .filter((w) => w.status === "pending")
+                .reduce((sum, w) => sum + w.amount, 0)
+            )}
+          </p>
+        </div>
+
+        <div>
+          <p className="text-sm text-slate-500">Processing Amount</p>
+          <p className="text-xl font-bold text-blue-600">
+            {formatNaira(
+              withdrawals
+                .filter((w) => w.status === "processing")
+                .reduce((sum, w) => sum + w.amount, 0)
+            )}
+          </p>
+        </div>
+
+        <div>
+          <p className="text-sm text-slate-500">Total Paid</p>
+          <p className="text-xl font-bold text-green-600">
+            {formatNaira(
+              withdrawals
+                .filter((w) => w.status === "paid")
+                .reduce((sum, w) => sum + w.amount, 0)
+            )}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
