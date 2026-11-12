@@ -714,7 +714,7 @@ useEffect(() => {
 
 
           <button
-  onClick={() => router.push("/dashboard/withdrawal")}
+  onClick={() => router.push("/dashboard/withdraw")}
   disabled={loading || balance < MINIMUM_WITHDRAWAL}
   className={`mt-6 w-full rounded-xl px-4 py-3 text-sm font-semibold transition ${
     loading || balance < MINIMUM_WITHDRAWAL

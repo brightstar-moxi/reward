@@ -67,6 +67,12 @@ export const getEligibility = query({
     let qualifiedReferrals = 0;
 
     for (const referral of referrals) {
+
+      // new
+      if (referral.status !== "active") {
+        continue;
+      }
+
       const referralActivities = await ctx.db
         .query("userActivities")
         .withIndex("by_user", (q) =>
@@ -293,3 +299,50 @@ export const requestWithdrawal = mutation({
 });
 
 
+//history
+
+
+export const getMyWithdrawals = query({
+  args: {
+    token: v.string(),
+  },
+
+  handler: async (ctx, args) => {
+    const hashBuffer = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(args.token)
+    );
+
+    const tokenHash = Array.from(new Uint8Array(hashBuffer))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+
+    const session = await ctx.db
+      .query("sessions")
+      .withIndex("by_token_hash", (q) =>
+        q.eq("tokenHash", tokenHash)
+      )
+      .unique();
+
+    if (!session || session.expiresAt <= Date.now()) {
+      throw new Error("Please sign in again.");
+    }
+
+    const user = await ctx.db.get(session.userId);
+
+    if (!user || user.status !== "active") {
+      throw new Error("Your account is not active.");
+    }
+
+    const withdrawals = await ctx.db
+      .query("withdrawals")
+      .withIndex("by_user", (q) =>
+        q.eq("userId", user._id)
+      )
+      .collect();
+
+    return withdrawals.sort(
+      (a, b) => b.requestedAt - a.requestedAt
+    );
+  },
+});
