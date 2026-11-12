@@ -219,3 +219,137 @@ export const getAllWithdrawals = query({
 });
 
 
+
+//testing
+
+export const createTestWithdrawal = mutation({
+  args: {
+    token: v.string(),
+    email: v.string(),
+  },
+
+  handler: async (ctx, args) => {
+    // Only allow this mutation when explicitly enabled in development.
+    if (process.env.ALLOW_TEST_WITHDRAWALS !== "true") {
+      throw new Error("Test withdrawals are disabled.");
+    }
+
+    await authenticateAdmin(ctx, args.token);
+
+    const email = args.email.trim().toLowerCase();
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .unique();
+
+    if (!user) {
+      throw new Error("Test user not found.");
+    }
+
+    if (user.status !== "active") {
+      throw new Error("Test user account is not active.");
+    }
+
+    // Prevent multiple active test withdrawals.
+    const pending = await ctx.db
+      .query("withdrawals")
+      .withIndex("by_user_status", (q) =>
+        q.eq("userId", user._id).eq("status", "pending")
+      )
+      .first();
+
+    const processing = await ctx.db
+      .query("withdrawals")
+      .withIndex("by_user_status", (q) =>
+        q.eq("userId", user._id).eq("status", "processing")
+      )
+      .first();
+
+    if (pending || processing) {
+      throw new Error("This user already has an active withdrawal.");
+    }
+
+    const now = Date.now();
+    const testCredit = 15000;
+    const withdrawalAmount = 10000;
+    const reference = `TEST-${user._id}-${now}`;
+
+    // Get or create the user's wallet.
+    const existingWallet = await ctx.db
+      .query("wallets")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .unique();
+
+    if (existingWallet) {
+      await ctx.db.patch(existingWallet._id, {
+        balance: existingWallet.balance + testCredit,
+        totalEarned: existingWallet.totalEarned + testCredit,
+        updatedAt: now,
+      });
+    } else {
+      await ctx.db.insert("wallets", {
+        userId: user._id,
+        balance: testCredit,
+        totalEarned: testCredit,
+        totalWithdrawn: 0,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    // Record the test wallet credit.
+    await ctx.db.insert("walletTransactions", {
+      userId: user._id,
+      type: "reward",
+      amount: testCredit,
+      description: "Development test wallet credit",
+      reference: `${reference}-CREDIT`,
+      createdAt: now,
+    });
+
+    // Create the pending withdrawal.
+    const withdrawalId = await ctx.db.insert("withdrawals", {
+      userId: user._id,
+      amount: withdrawalAmount,
+      status: "pending",
+      bankName: "TEST BANK",
+      accountName: user.name,
+      accountNumber: "0000000000",
+      requestedAt: now,
+    });
+
+    // Reserve the withdrawal amount.
+    const wallet = await ctx.db
+      .query("wallets")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .unique();
+
+    if (!wallet || wallet.balance < withdrawalAmount) {
+      throw new Error("Insufficient test wallet balance.");
+    }
+
+    await ctx.db.patch(wallet._id, {
+      balance: wallet.balance - withdrawalAmount,
+      updatedAt: now,
+    });
+
+    await ctx.db.insert("walletTransactions", {
+      userId: user._id,
+      type: "withdrawal",
+      amount: -withdrawalAmount,
+      description: "Development test withdrawal",
+      reference: `${reference}-WITHDRAWAL`,
+      createdAt: now,
+    });
+
+    return {
+      success: true,
+      message: "Test withdrawal created successfully.",
+      withdrawalId,
+      userEmail: user.email,
+      amount: withdrawalAmount,
+    };
+  },
+});
+

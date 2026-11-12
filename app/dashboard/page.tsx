@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Wallet,
   CheckCircle2,
@@ -89,6 +90,7 @@ export default function DashboardPage() {
   const [participation, setParticipation] =
   useState<ParticipationData | null>(null);
 
+  const router = useRouter();
   
 const [dailyTasks, setDailyTasks] =
   useState<DailyTasksData | null>(null);
@@ -699,7 +701,7 @@ useEffect(() => {
             </p>
           </div>
 
-          <button
+          {/* <button
             disabled={loading || balance < MINIMUM_WITHDRAWAL}
             className="mt-6 w-full rounded-xl bg-gray-100 px-4 py-3 text-sm font-semibold text-gray-400 disabled:cursor-not-allowed"
           >
@@ -708,7 +710,24 @@ useEffect(() => {
               : balance >= MINIMUM_WITHDRAWAL
                 ? "Eligible for withdrawal"
                 : "Withdrawal locked"}
-          </button>
+          </button> */}
+
+
+          <button
+  onClick={() => router.push("/dashboard/withdrawal")}
+  disabled={loading || balance < MINIMUM_WITHDRAWAL}
+  className={`mt-6 w-full rounded-xl px-4 py-3 text-sm font-semibold transition ${
+    loading || balance < MINIMUM_WITHDRAWAL
+      ? "cursor-not-allowed bg-gray-100 text-gray-400"
+      : "bg-green-600 text-white hover:bg-green-700"
+  }`}
+>
+  {loading
+    ? "Loading wallet..."
+    : balance >= MINIMUM_WITHDRAWAL
+      ? "Withdraw Funds"
+      : "Withdrawal Locked"}
+</button>
         </div>
       </section>
 
