@@ -61,12 +61,14 @@ export default defineSchema({
     .index("by_referral_code", ["referralCode"])
   .index("by_referred_by", ["referredBy"]),
 
- sessions: defineTable({
+sessions: defineTable({
   userId: v.id("users"),
   tokenHash: v.string(),
   expiresAt: v.number(),
   createdAt: v.number(),
-}).index("by_token_hash", ["tokenHash"]),
+})
+  .index("by_token_hash", ["tokenHash"])
+  .index("by_user", ["userId"]),
 
 dailyActivities: defineTable({
   day: v.number(),

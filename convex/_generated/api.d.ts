@@ -10,6 +10,8 @@
 
 import type * as admin from "../admin.js";
 import type * as adminSubmissions from "../adminSubmissions.js";
+import type * as adminTasks from "../adminTasks.js";
+import type * as adminUsers from "../adminUsers.js";
 import type * as adminWithdrawals from "../adminWithdrawals.js";
 import type * as dailyActivities from "../dailyActivities.js";
 import type * as dailyPenalties from "../dailyPenalties.js";
@@ -33,6 +35,8 @@ import type {
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   adminSubmissions: typeof adminSubmissions;
+  adminTasks: typeof adminTasks;
+  adminUsers: typeof adminUsers;
   adminWithdrawals: typeof adminWithdrawals;
   dailyActivities: typeof dailyActivities;
   dailyPenalties: typeof dailyPenalties;
