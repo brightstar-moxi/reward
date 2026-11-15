@@ -57,12 +57,18 @@ export const getEligibility = query({
         .map((activity) => activity.day)
     ).size;
 
+    // const referrals = await ctx.db
+    //   .query("users")
+    //   .withIndex("by_referred_by", (q) =>
+    //     q.eq("referredBy", user._id)
+    //   )
+    //   .collect();
     const referrals = await ctx.db
-      .query("users")
-      .withIndex("by_referred_by", (q) =>
-        q.eq("referredBy", user._id)
-      )
-      .collect();
+  .query("users")
+  .withIndex("by_referred_by", (q) =>
+    q.eq("referredBy", user.referralCode)
+  )
+  .collect();
 
     let qualifiedReferrals = 0;
 
@@ -193,12 +199,19 @@ export const requestWithdrawal = mutation({
     }
 
     // 4. Verify at least 10 qualified referrals.
+    // const referrals = await ctx.db
+    //   .query("users")
+    //   .withIndex("by_referred_by", (q) =>
+    //     q.eq("referredBy", user._id)
+    //   )
+    //   .collect();
+
     const referrals = await ctx.db
-      .query("users")
-      .withIndex("by_referred_by", (q) =>
-        q.eq("referredBy", user._id)
-      )
-      .collect();
+  .query("users")
+  .withIndex("by_referred_by", (q) =>
+    q.eq("referredBy", user.referralCode)
+  )
+  .collect();
 
     let qualifiedReferrals = 0;
 
