@@ -18,6 +18,7 @@ import type * as adminWithdrawals from "../adminWithdrawals.js";
 import type * as dailyActivities from "../dailyActivities.js";
 import type * as dailyPenalties from "../dailyPenalties.js";
 import type * as participation from "../participation.js";
+import type * as platformSettings from "../platformSettings.js";
 import type * as referrals from "../referrals.js";
 import type * as seed from "../seed.js";
 import type * as seedAdmin from "../seedAdmin.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   dailyActivities: typeof dailyActivities;
   dailyPenalties: typeof dailyPenalties;
   participation: typeof participation;
+  platformSettings: typeof platformSettings;
   referrals: typeof referrals;
   seed: typeof seed;
   seedAdmin: typeof seedAdmin;

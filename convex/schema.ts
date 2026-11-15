@@ -282,6 +282,16 @@ reference: v.optional(v.string()),
     .index("by_status", ["status"])
     .index("by_user_status", ["userId", "status"]),
 
+  // dailyPenalties: defineTable({
+  //   userId: v.id("users"),
+  //   dayKey: v.string(),
+  //   amount: v.number(),
+  //   reason: v.string(),
+  //   createdAt: v.number(),
+  // })
+  //   .index("by_user", ["userId"])
+  //   .index("by_user_day", ["userId", "dayKey"]),
+
   dailyPenalties: defineTable({
     userId: v.id("users"),
     dayKey: v.string(),
@@ -292,6 +302,23 @@ reference: v.optional(v.string()),
     .index("by_user", ["userId"])
     .index("by_user_day", ["userId", "dayKey"]),
 
+  platformSettings: defineTable({
+    totalJourneyDays: v.number(),
+    withdrawalQualificationDays: v.number(),
+    referralQualificationDays: v.number(),
+    requiredReferrals: v.number(),
+    minimumWithdrawal: v.number(),
+    updatedAt: v.number(),
+  }),
 });
+
+
+
+
+
+
+
+
+// });
 
 
