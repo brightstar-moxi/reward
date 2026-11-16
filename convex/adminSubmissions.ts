@@ -698,6 +698,7 @@ await ctx.db.insert("walletTransactions", {
   reference: `TASK-${submission._id}`,
   taskId: task._id,
   submissionId: submission._id,
+  isTest: false,
   createdAt: now,
 });
 }

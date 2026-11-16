@@ -354,3 +354,34 @@ export const createTestWithdrawal = mutation({
   },
 });
 
+export const markExistingTestRewards = mutation({
+  args: {
+    token: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await authenticateAdmin(ctx, args.token);
+
+    const transactions = await ctx.db
+      .query("walletTransactions")
+      .withIndex("by_type", (q) => q.eq("type", "reward"))
+      .collect();
+
+    const testRewards = transactions.filter(
+      (transaction) =>
+        transaction.description === "Development test wallet credit" &&
+        transaction.reference?.startsWith("TEST-") &&
+        transaction.isTest !== true
+    );
+
+    for (const transaction of testRewards) {
+      await ctx.db.patch(transaction._id, {
+        isTest: true,
+      });
+    }
+
+    return {
+      success: true,
+      updated: testRewards.length,
+    };
+  },
+});

@@ -78,36 +78,40 @@ export const getAllRewards = query({
 
     rewards.sort((a, b) => b.createdAt - a.createdAt);
 
-    const results = await Promise.all(
-      rewards.map(async (transaction) => {
-        const user = await ctx.db.get(transaction.userId);
+ const genuineRewards = rewards
+  .filter((transaction) => transaction.isTest !== true)
+  .sort((a, b) => b.createdAt - a.createdAt);
 
-        const task = transaction.taskId
-          ? await ctx.db.get(transaction.taskId)
-          : null;
+const results = await Promise.all(
+  genuineRewards.map(async (transaction) => {
+    const user = await ctx.db.get(transaction.userId);
 
-        return {
-          id: transaction._id,
-          userId: transaction.userId,
-          userName: user?.name ?? "Unknown user",
-          userEmail: user?.email ?? "",
-          amount: transaction.amount,
-          description: transaction.description,
-          reference: transaction.reference ?? "",
-          taskTitle: task?.title ?? "Unavailable task",
-          taskDay: task?.day ?? null,
-          createdAt: transaction.createdAt,
-        };
-      })
-    );
+    const task = transaction.taskId
+      ? await ctx.db.get(transaction.taskId)
+      : null;
 
     return {
-      totalRewards: rewards.reduce(
-        (total, transaction) => total + transaction.amount,
-        0
-      ),
-      totalTransactions: rewards.length,
-      rewards: results,
+      id: transaction._id,
+      userId: transaction.userId,
+      userName: user?.name ?? "Unknown user",
+      userEmail: user?.email ?? "",
+      amount: transaction.amount,
+      description: transaction.description,
+      reference: transaction.reference ?? "",
+      taskTitle: task?.title ?? "Unavailable task",
+      taskDay: task?.day ?? null,
+      createdAt: transaction.createdAt,
     };
+  })
+);
+
+return {
+  totalRewards: genuineRewards.reduce(
+    (total, transaction) => total + transaction.amount,
+    0
+  ),
+  totalTransactions: genuineRewards.length,
+  rewards: results,
+};
   },
 });
