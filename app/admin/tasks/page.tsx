@@ -39,6 +39,13 @@ type TaskForm = {
   instructions: string;
 };
 
+type TasksResponse = {
+  success: boolean;
+  tasks: Task[];
+  totalJourneyDays: number;
+  message?: string;
+};
+
 const initialForm: TaskForm = {
   day: "1",
   title: "",
@@ -63,6 +70,7 @@ const taskTypes: { value: TaskType; label: string }[] = [
 
 export default function AdminTasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [totalJourneyDays, setTotalJourneyDays] = useState(100);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -83,13 +91,14 @@ export default function AdminTasksPage() {
         cache: "no-store",
       });
 
-      const data = await response.json();
+      const data: TasksResponse = await response.json();
 
       if (!response.ok) {
         throw new Error(data.message || "Unable to load tasks.");
       }
 
       setTasks(data.tasks || []);
+      setTotalJourneyDays(data.totalJourneyDays);
     } catch (error) {
       setError(
         error instanceof Error ? error.message : "Unable to load tasks."
@@ -102,6 +111,15 @@ export default function AdminTasksPage() {
   useEffect(() => {
     loadTasks();
   }, [loadTasks]);
+
+  const dayOptions = useMemo(
+    () =>
+      Array.from(
+        { length: totalJourneyDays },
+        (_, index) => index + 1
+      ),
+    [totalJourneyDays]
+  );
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
@@ -133,7 +151,10 @@ export default function AdminTasksPage() {
 
   const openCreateForm = () => {
     setEditingTask(null);
-    setForm(initialForm);
+    setForm({
+      ...initialForm,
+      day: "1",
+    });
     setShowForm(true);
   };
 
@@ -165,11 +186,22 @@ export default function AdminTasksPage() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    const selectedDay = Number(form.day);
+
+    if (
+      !Number.isInteger(selectedDay) ||
+      selectedDay < 1 ||
+      selectedDay > totalJourneyDays
+    ) {
+      alert(`Task day must be between 1 and ${totalJourneyDays}.`);
+      return;
+    }
+
     try {
       setSaving(true);
 
       const payload = {
-        day: Number(form.day),
+        day: selectedDay,
         title: form.title.trim(),
         description: form.description.trim(),
         type: form.type,
@@ -324,7 +356,7 @@ export default function AdminTasksPage() {
             Task Management
           </h1>
           <p className="mt-1 text-sm text-gray-500">
-            Create and manage tasks across all 100 participation days.
+            Create and manage tasks across all {totalJourneyDays} participation days.
           </p>
         </div>
 
@@ -363,13 +395,11 @@ export default function AdminTasksPage() {
           className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
         >
           <option value="all">All Days</option>
-          {Array.from({ length: 100 }, (_, index) => index + 1).map(
-            (day) => (
-              <option key={day} value={day}>
-                Day {day}
-              </option>
-            )
-          )}
+          {dayOptions.map((day) => (
+            <option key={day} value={day}>
+              Day {day}
+            </option>
+          ))}
         </select>
 
         <select
@@ -535,21 +565,21 @@ export default function AdminTasksPage() {
                   </label>
                   <select
                     required
-                    // min={1}
                     value={form.day}
                     onChange={(event) =>
                       setForm({ ...form, day: event.target.value })
                     }
                     className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-blue-500"
                   >
-                    {Array.from({ length: 100 }, (_, index) => index + 1).map(
-                      (day) => (
-                        <option key={day} value={day}>
-                          Day {day}
-                        </option>
-                      )
-                    )}
+                    {dayOptions.map((day) => (
+                      <option key={day} value={day}>
+                        Day {day}
+                      </option>
+                    ))}
                   </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Available days: 1–{totalJourneyDays}
+                  </p>
                 </div>
 
                 <div>

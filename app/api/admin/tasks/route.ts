@@ -33,7 +33,7 @@ async function authenticateAdmin(
   return Boolean(user && user.role === "admin");
 }
 
-// GET: Retrieve all tasks
+// GET: Retrieve all tasks and platform journey settings.
 export async function GET() {
   try {
     const token = await getAdminToken();
@@ -54,14 +54,15 @@ export async function GET() {
       );
     }
 
-    const tasks = await convex.query(
-      api.adminTasks.getAllTasks,
-      { token }
-    );
+    const [tasks, settings] = await Promise.all([
+      convex.query(api.adminTasks.getAllTasks, { token }),
+      convex.query(api.platformSettings.getAdminSettings, { token }),
+    ]);
 
     return NextResponse.json({
       success: true,
       tasks,
+      totalJourneyDays: settings.totalJourneyDays,
     });
   } catch (error) {
     console.error("Admin tasks fetch error:", error);
@@ -79,7 +80,7 @@ export async function GET() {
   }
 }
 
-// POST: Create a task
+// POST: Create a task.
 export async function POST(request: NextRequest) {
   try {
     const token = await getAdminToken();
@@ -145,7 +146,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PATCH: Update task or change its active status
+// PATCH: Update a task or change its active status.
 export async function PATCH(request: NextRequest) {
   try {
     const token = await getAdminToken();
@@ -222,7 +223,7 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-// DELETE: Delete a task
+// DELETE: Delete a task.
 export async function DELETE(request: NextRequest) {
   try {
     const token = await getAdminToken();

@@ -30,6 +30,7 @@ type ReferralsResponse = {
   totalReferrals: number;
   activeReferrals: number;
   qualifiedReferrals: number;
+  referralQualificationDays: number;
   referralGroups: ReferralGroup[];
   error?: string;
 };
@@ -45,6 +46,8 @@ const formatDate = (timestamp: number) =>
 
 export default function AdminReferralsPage() {
   const [groups, setGroups] = useState<ReferralGroup[]>([]);
+const [referralQualificationDays, setReferralQualificationDays] =
+  useState(30);
 
   const [totalReferrers, setTotalReferrers] = useState(0);
   const [totalReferrals, setTotalReferrals] = useState(0);
@@ -85,6 +88,12 @@ export default function AdminReferralsPage() {
       setTotalReferrals(data.totalReferrals || 0);
       setActiveReferrals(data.activeReferrals || 0);
       setQualifiedReferrals(data.qualifiedReferrals || 0);
+      setReferralQualificationDays(
+  Number.isInteger(data.referralQualificationDays) &&
+    data.referralQualificationDays > 0
+    ? data.referralQualificationDays
+    : 30
+);
     } catch (error) {
       setError(
         error instanceof Error
@@ -210,9 +219,14 @@ export default function AdminReferralsPage() {
             Referrals Management
           </h1>
 
-          <p className="mt-1 text-sm text-gray-500">
+          {/* <p className="mt-1 text-sm text-gray-500">
             Monitor referral registrations and qualification progress.
-          </p>
+          </p> */}
+
+          <p className="mt-1 text-sm text-gray-500">
+  Monitor referral registrations and qualification progress.
+  Referred users need {referralQualificationDays} completed days to qualify.
+</p>
         </div>
 
         <button
@@ -435,7 +449,7 @@ export default function AdminReferralsPage() {
                                         </td>
 
                                         <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-700">
-                                          {referral.completedDays} / 10
+                                          {referral.completedDays} / {referralQualificationDays}
                                         </td>
 
                                         <td className="px-4 py-3">
