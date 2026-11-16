@@ -1,7 +1,8 @@
 
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+// import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 
 type ReferredUser = {
   userId: string;
@@ -353,7 +354,7 @@ const [referralQualificationDays, setReferralQualificationDays] =
 
                 <tbody className="divide-y divide-gray-100">
                   {paginatedGroups.map((group) => (
-                    <>
+                   <Fragment key={group.referralCode}>
                       <tr
                         key={group.referralCode}
                         className="hover:bg-gray-50"
@@ -476,7 +477,7 @@ const [referralQualificationDays, setReferralQualificationDays] =
                           </td>
                         </tr>
                       )}
-                    </>
+                   </Fragment>
                   ))}
                 </tbody>
               </table>

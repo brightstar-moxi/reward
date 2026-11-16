@@ -231,7 +231,7 @@ type: v.union(
   v.literal("refund")
 ),
 
-
+isTest: v.optional(v.boolean()),
   amount: v.number(),
 
   description: v.string(),
@@ -246,11 +246,14 @@ reference: v.optional(v.string()),
 
   createdAt: v.number(),
 })
-  .index("by_user", ["userId"])
-  .index("by_submission", ["submissionId"])
-  .index("by_reference", ["reference"]),
+  // .index("by_user", ["userId"])
+  // .index("by_submission", ["submissionId"])
+  // .index("by_reference", ["reference"]),
 
-
+.index("by_user", ["userId"])
+.index("by_type", ["type"])
+.index("by_submission", ["submissionId"])
+.index("by_reference", ["reference"]),
 
 
   

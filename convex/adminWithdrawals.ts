@@ -299,14 +299,15 @@ export const createTestWithdrawal = mutation({
     }
 
     // Record the test wallet credit.
-    await ctx.db.insert("walletTransactions", {
-      userId: user._id,
-      type: "reward",
-      amount: testCredit,
-      description: "Development test wallet credit",
-      reference: `${reference}-CREDIT`,
-      createdAt: now,
-    });
+ await ctx.db.insert("walletTransactions", {
+  userId: user._id,
+  type: "reward",
+  amount: testCredit,
+  description: "Development test wallet credit",
+  reference: `${reference}-CREDIT`,
+  isTest: true,
+  createdAt: now,
+});
 
     // Create the pending withdrawal.
     const withdrawalId = await ctx.db.insert("withdrawals", {
