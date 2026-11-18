@@ -298,3 +298,65 @@ export const deleteBanner = mutation({
     return { success: true };
   },
 });
+
+
+
+// ==========================================
+// PUBLIC CONTENT QUERIES
+// ==========================================
+
+// Published website page by slug
+export const getPublishedPage = query({
+  args: { slug: v.string() },
+  handler: async (ctx, args) => {
+    const slug = args.slug.trim().toLowerCase();
+
+    return await ctx.db
+      .query("sitePages")
+      .withIndex("by_slug", (q) => q.eq("slug", slug))
+      .unique()
+      .then((page) =>
+        page && page.isPublished ? page : null
+      );
+  },
+});
+
+// Published FAQs
+export const getPublishedFaqs = query({
+  args: {},
+  handler: async (ctx) => {
+    const faqs = await ctx.db.query("faqs").collect();
+
+    return faqs
+      .filter((faq) => faq.isPublished)
+      .sort((a, b) => a.order - b.order);
+  },
+});
+
+// Published announcements
+export const getPublishedAnnouncements = query({
+  args: {},
+  handler: async (ctx) => {
+    const announcements = await ctx.db
+      .query("announcements")
+      .withIndex("by_createdAt")
+      .order("desc")
+      .collect();
+
+    return announcements.filter((item) => item.isPublished);
+  },
+});
+
+// Published banners
+export const getPublishedBanners = query({
+  args: {},
+  handler: async (ctx) => {
+    const banners = await ctx.db
+      .query("banners")
+      .withIndex("by_createdAt")
+      .order("desc")
+      .collect();
+
+    return banners.filter((banner) => banner.isPublished);
+  },
+});
