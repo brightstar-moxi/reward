@@ -232,6 +232,7 @@ type: v.union(
 ),
 
 isTest: v.optional(v.boolean()),
+adminUserId: v.optional(v.id("users")),
   amount: v.number(),
 
   description: v.string(),
@@ -304,6 +305,45 @@ reference: v.optional(v.string()),
   })
     .index("by_user", ["userId"])
     .index("by_user_day", ["userId", "dayKey"]),
+
+      sitePages: defineTable({
+    slug: v.string(),
+    title: v.string(),
+    content: v.string(),
+    isPublished: v.boolean(),
+    updatedAt: v.number(),
+  })
+    .index("by_slug", ["slug"]),
+
+  faqs: defineTable({
+    question: v.string(),
+    answer: v.string(),
+    order: v.number(),
+    isPublished: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_order", ["order"]),
+
+  announcements: defineTable({
+    title: v.string(),
+    message: v.string(),
+    isPublished: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_createdAt", ["createdAt"]),
+
+  banners: defineTable({
+    title: v.string(),
+    message: v.string(),
+    imageUrl: v.optional(v.string()),
+    targetUrl: v.optional(v.string()),
+    isPublished: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_createdAt", ["createdAt"]),
 
   platformSettings: defineTable({
     totalJourneyDays: v.number(),

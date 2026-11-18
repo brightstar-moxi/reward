@@ -218,10 +218,10 @@ export default function AdminWithdrawalsPage() {
 
       const data = await response.json();
 
-      <WithdrawalFinancialSummary
-  withdrawals={withdrawals}
-  formatNaira={formatNaira}
-/>
+//       <WithdrawalFinancialSummary
+//   withdrawals={withdrawals}
+//   formatNaira={formatNaira}
+// />
 
       if (!response.ok || !data.success) {
         throw new Error(
@@ -394,6 +394,10 @@ export default function AdminWithdrawalsPage() {
             icon={<XCircle size={21} />}
           />
         </section>
+        <WithdrawalFinancialSummary
+  withdrawals={withdrawals}
+  formatNaira={formatNaira}
+/>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
