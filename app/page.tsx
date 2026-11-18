@@ -11,12 +11,15 @@ import FinalCTA from "./components/public/Features";
 
 import Footer from "./components/public/Footer";
 import Stats from "./components/public/Stats";
+import Announcements from "./components/public/Announcements";
+import Banner from "./components/public/Banner";
 
 export default function Home() {
   return (
     <>
       <Navbar />
-
+<Announcements/>
+<Banner/>
       <main>
         <Hero />
         <Stats/>
