@@ -534,3 +534,463 @@ export const getWalletReport = query({
     };
   },
 });
+
+
+
+
+export const getUserActivityReport = query({
+  args: { token: v.string() },
+
+  handler: async (ctx, args) => {
+    await authenticateAdmin(ctx, args.token);
+
+    const [users, activities, settings] = await Promise.all([
+      ctx.db.query("users").collect(),
+      ctx.db.query("userActivities").collect(),
+      ctx.db.query("platformSettings").first(),
+    ]);
+
+    const regularUsers = users.filter(
+      (user) => user.role === "user"
+    );
+
+    const journeyDays = settings?.totalJourneyDays ?? 100;
+
+    const userResults = regularUsers.map((user) => {
+      const userRecords = activities.filter(
+        (activity) => activity.userId === user._id
+      );
+
+      const completedDays = userRecords.filter(
+        (activity) => activity.status === "completed"
+      ).length;
+
+      const started = userRecords.length > 0;
+
+      return {
+        userId: user._id,
+        name: user.name,
+        email: user.email,
+        status: user.status,
+        completedDays,
+        started,
+        progressPercentage: Math.min(
+          100,
+          Math.round((completedDays / journeyDays) * 100)
+        ),
+        completedJourney: completedDays >= journeyDays,
+      };
+    });
+
+    const startedUsers = userResults.filter(
+      (user) => user.started
+    );
+
+    const completedUsers = userResults.filter(
+      (user) => user.completedJourney
+    );
+
+    const totalCompletedDays = userResults.reduce(
+      (sum, user) => sum + user.completedDays,
+      0
+    );
+
+    return {
+      summary: {
+        totalUsers: regularUsers.length,
+        activeUsers: regularUsers.filter(
+          (user) => user.status === "active"
+        ).length,
+        suspendedUsers: regularUsers.filter(
+          (user) => user.status === "suspended"
+        ).length,
+        startedUsers: startedUsers.length,
+        usersNotStarted: regularUsers.length - startedUsers.length,
+        totalCompletedDays,
+        averageCompletedDays:
+          regularUsers.length > 0
+            ? Math.round(totalCompletedDays / regularUsers.length)
+            : 0,
+        completedJourney: completedUsers.length,
+        journeyDays,
+      },
+
+      topUsers: userResults
+        .sort((a, b) => b.completedDays - a.completedDays)
+        .slice(0, 20),
+    };
+  },
+});
+
+
+
+export const getSubmissionReport = query({
+  args: { token: v.string() },
+
+  handler: async (ctx, args) => {
+    await authenticateAdmin(ctx, args.token);
+
+    const [submissions, users, tasks] = await Promise.all([
+      ctx.db.query("taskSubmissions").collect(),
+      ctx.db.query("users").collect(),
+      ctx.db.query("tasks").collect(),
+    ]);
+
+    const userMap = new Map(
+      users.map((user) => [user._id, user])
+    );
+
+    const taskMap = new Map(
+      tasks.map((task) => [task._id, task])
+    );
+
+    const total = submissions.length;
+    const pending = submissions.filter(
+      (item) => item.status === "pending"
+    ).length;
+    const approved = submissions.filter(
+      (item) => item.status === "approved"
+    ).length;
+    const rejected = submissions.filter(
+      (item) => item.status === "rejected"
+    ).length;
+
+    const reviewed = approved + rejected;
+
+    return {
+      summary: {
+        total,
+        pending,
+        approved,
+        rejected,
+        approvalRate:
+          reviewed > 0
+            ? Math.round((approved / reviewed) * 100)
+            : 0,
+        rejectionRate:
+          reviewed > 0
+            ? Math.round((rejected / reviewed) * 100)
+            : 0,
+      },
+
+      recentSubmissions: submissions
+        .sort((a, b) => b.submittedAt - a.submittedAt)
+        .slice(0, 100)
+        .map((submission) => {
+          const user = userMap.get(submission.userId);
+          const task = taskMap.get(submission.taskId);
+
+          return {
+            id: submission._id,
+            userName: user?.name ?? "Unknown User",
+            userEmail: user?.email ?? "Unknown Email",
+            taskTitle: task?.title ?? "Deleted Task",
+            status: submission.status,
+            submittedAt: submission.submittedAt,
+            reviewedAt: submission.reviewedAt,
+            adminNote: submission.adminNote,
+          };
+        }),
+    };
+  },
+});
+
+
+
+export const getDailyActivityReport = query({
+  args: { token: v.string() },
+
+  handler: async (ctx, args) => {
+    await authenticateAdmin(ctx, args.token);
+
+    const [activities, users, settings] = await Promise.all([
+      ctx.db.query("userActivities").collect(),
+      ctx.db.query("users").collect(),
+      ctx.db.query("platformSettings").first(),
+    ]);
+
+    const regularUsers = users.filter(
+      (user) => user.role === "user"
+    );
+
+    const journeyDays = settings?.totalJourneyDays ?? 100;
+
+    const completed = activities.filter(
+      (activity) => activity.status === "completed"
+    ).length;
+
+    const inProgress = activities.filter(
+      (activity) => activity.status === "in_progress"
+    ).length;
+
+    const available = activities.filter(
+      (activity) => activity.status === "available"
+    ).length;
+
+    const total = activities.length;
+
+    const dailyBreakdown = Array.from(
+      { length: journeyDays },
+      (_, index) => {
+        const day = index + 1;
+
+        const dayActivities = activities.filter(
+          (activity) => activity.day === day
+        );
+
+        const dayCompleted = dayActivities.filter(
+          (activity) => activity.status === "completed"
+        ).length;
+
+        return {
+          day,
+          total: dayActivities.length,
+          completed: dayCompleted,
+          inProgress: dayActivities.filter(
+            (activity) => activity.status === "in_progress"
+          ).length,
+          available: dayActivities.filter(
+            (activity) => activity.status === "available"
+          ).length,
+          completionRate:
+            dayActivities.length > 0
+              ? Math.round(
+                  (dayCompleted / dayActivities.length) * 100
+                )
+              : 0,
+        };
+      }
+    );
+
+    return {
+      summary: {
+        totalUsers: regularUsers.length,
+        total,
+        completed,
+        inProgress,
+        available,
+        completionRate:
+          total > 0
+            ? Math.round((completed / total) * 100)
+            : 0,
+        journeyDays,
+      },
+
+      dailyBreakdown,
+    };
+  },
+});
+
+
+
+export const getUserGrowthReport = query({
+  args: { token: v.string() },
+
+  handler: async (ctx, args) => {
+    await authenticateAdmin(ctx, args.token);
+
+    const users = await ctx.db.query("users").collect();
+
+    // Exclude admin accounts from user growth statistics.
+    const regularUsers = users.filter(
+      (user) => user.role === "user"
+    );
+
+    // Use Nigeria time (UTC+1).
+    const now = Date.now();
+    const nigeriaNow = new Date(now + 60 * 60 * 1000);
+
+    const todayStart = Date.UTC(
+      nigeriaNow.getUTCFullYear(),
+      nigeriaNow.getUTCMonth(),
+      nigeriaNow.getUTCDate()
+    ) - 60 * 60 * 1000;
+
+    const tomorrowStart = todayStart + 24 * 60 * 60 * 1000;
+
+    const monthStart = Date.UTC(
+      nigeriaNow.getUTCFullYear(),
+      nigeriaNow.getUTCMonth(),
+      1
+    ) - 60 * 60 * 1000;
+
+    const todayUsers = regularUsers.filter(
+      (user) =>
+        user.createdAt >= todayStart &&
+        user.createdAt < tomorrowStart
+    );
+
+    const monthUsers = regularUsers.filter(
+      (user) => user.createdAt >= monthStart
+    );
+
+    const activeUsers = regularUsers.filter(
+      (user) => user.status === "active"
+    );
+
+    const suspendedUsers = regularUsers.filter(
+      (user) => user.status === "suspended"
+    );
+
+    // Registration history for the last 30 days.
+    const dailyRegistrations = Array.from(
+      { length: 30 },
+      (_, index) => {
+        const dayStart =
+          todayStart - (29 - index) * 24 * 60 * 60 * 1000;
+
+        const nextDayStart = dayStart + 24 * 60 * 60 * 1000;
+
+        const count = regularUsers.filter(
+          (user) =>
+            user.createdAt >= dayStart &&
+            user.createdAt < nextDayStart
+        ).length;
+
+        return {
+          date: new Date(dayStart).toISOString().slice(0, 10),
+          registrations: count,
+        };
+      }
+    );
+
+    return {
+      summary: {
+        totalUsers: regularUsers.length,
+        registrationsToday: todayUsers.length,
+        registrationsThisMonth: monthUsers.length,
+        activeUsers: activeUsers.length,
+        suspendedUsers: suspendedUsers.length,
+      },
+
+      dailyRegistrations,
+
+      recentUsers: [...regularUsers]
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, 50)
+        .map((user) => ({
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          status: user.status,
+          createdAt: user.createdAt,
+        })),
+    };
+  },
+});
+
+
+
+
+export const getRewardDistributionReport = query({
+  args: { token: v.string() },
+
+  handler: async (ctx, args) => {
+    await authenticateAdmin(ctx, args.token);
+
+    const [transactions, users, tasks] = await Promise.all([
+      ctx.db.query("walletTransactions").collect(),
+      ctx.db.query("users").collect(),
+      ctx.db.query("tasks").collect(),
+    ]);
+
+    // Exclude test transactions and keep reward payments only.
+    const rewards = transactions.filter(
+      (transaction) =>
+        transaction.type === "reward" &&
+        transaction.isTest !== true
+    );
+
+    const userMap = new Map(
+      users.map((user) => [user._id, user])
+    );
+
+    const taskMap = new Map(
+      tasks.map((task) => [task._id, task])
+    );
+
+    const totalRewards = rewards.reduce(
+      (sum, transaction) => sum + transaction.amount,
+      0
+    );
+
+    const now = Date.now();
+    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+
+    const recentRewards = rewards.filter(
+      (transaction) => transaction.createdAt >= thirtyDaysAgo
+    );
+
+    const recentRewardsTotal = recentRewards.reduce(
+      (sum, transaction) => sum + transaction.amount,
+      0
+    );
+
+    // Group reward payments by task.
+    const taskDistribution = new Map<
+      string,
+      { taskId: string; taskTitle: string; count: number; amount: number }
+    >();
+
+    for (const transaction of rewards) {
+      const taskId = transaction.taskId
+        ? String(transaction.taskId)
+        : "other";
+
+      const existing = taskDistribution.get(taskId);
+
+      if (existing) {
+        existing.count += 1;
+        existing.amount += transaction.amount;
+      } else {
+        const task = transaction.taskId
+          ? taskMap.get(transaction.taskId)
+          : undefined;
+
+        taskDistribution.set(taskId, {
+          taskId,
+          taskTitle: task?.title ?? "Other Rewards",
+          count: 1,
+          amount: transaction.amount,
+        });
+      }
+    }
+
+    return {
+      summary: {
+        totalRewards,
+        totalTransactions: rewards.length,
+        averageReward:
+          rewards.length > 0
+            ? Math.round(totalRewards / rewards.length)
+            : 0,
+        rewardsLast30Days: recentRewardsTotal,
+        transactionsLast30Days: recentRewards.length,
+      },
+
+      taskDistribution: Array.from(taskDistribution.values()).sort(
+        (a, b) => b.amount - a.amount
+      ),
+
+      recentPayments: [...rewards]
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, 50)
+        .map((transaction) => {
+          const user = userMap.get(transaction.userId);
+          const task = transaction.taskId
+            ? taskMap.get(transaction.taskId)
+            : undefined;
+
+          return {
+            id: transaction._id,
+            userName: user?.name ?? "Unknown User",
+            userEmail: user?.email ?? "Unknown Email",
+            taskTitle: task?.title ?? transaction.description,
+            amount: transaction.amount,
+            description: transaction.description,
+            createdAt: transaction.createdAt,
+          };
+        }),
+    };
+  },
+});

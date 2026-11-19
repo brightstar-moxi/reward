@@ -13,6 +13,7 @@ import type * as adminContent from "../adminContent.js";
 import type * as adminReferrals from "../adminReferrals.js";
 import type * as adminReports from "../adminReports.js";
 import type * as adminRewards from "../adminRewards.js";
+import type * as adminSettings from "../adminSettings.js";
 import type * as adminSubmissions from "../adminSubmissions.js";
 import type * as adminTasks from "../adminTasks.js";
 import type * as adminUsers from "../adminUsers.js";
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   adminReferrals: typeof adminReferrals;
   adminReports: typeof adminReports;
   adminRewards: typeof adminRewards;
+  adminSettings: typeof adminSettings;
   adminSubmissions: typeof adminSubmissions;
   adminTasks: typeof adminTasks;
   adminUsers: typeof adminUsers;
