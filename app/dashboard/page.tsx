@@ -27,13 +27,20 @@ type Transaction = {
   createdAt: number;
 };
 
+// type DashboardData = {
+//   wallet: WalletData;
+//   todaysEarnings: number;
+//   transactions: Transaction[];
+// };
 type DashboardData = {
   wallet: WalletData;
   todaysEarnings: number;
   transactions: Transaction[];
+  settings: {
+    minimumWithdrawal: number;
+  };
 };
-
-const MINIMUM_WITHDRAWAL = 10_000;
+// const MINIMUM_WITHDRAWAL = 10_000;
 
 const formatNaira = (amount: number) =>
   new Intl.NumberFormat("en-NG", {
@@ -671,7 +678,7 @@ useEffect(() => {
           </h3>
 
           <p className="mt-1 text-sm text-gray-500">
-            Minimum withdrawal: {formatNaira(MINIMUM_WITHDRAWAL)}
+            Minimum withdrawal: {formatNaira(data?.settings.minimumWithdrawal ?? 10_000)}
           </p>
 
           <div className="mt-6">
@@ -681,7 +688,7 @@ useEffect(() => {
               </span>
 
               <span className="text-gray-400">
-                {formatNaira(MINIMUM_WITHDRAWAL)}
+                {formatNaira(data?.settings.minimumWithdrawal ?? 10_000)}
               </span>
             </div>
 
@@ -715,16 +722,16 @@ useEffect(() => {
 
           <button
   onClick={() => router.push("/dashboard/withdraw")}
-  disabled={loading || balance < MINIMUM_WITHDRAWAL}
+  disabled={loading || balance < (data?.settings.minimumWithdrawal ?? 10_000)}
   className={`mt-6 w-full rounded-xl px-4 py-3 text-sm font-semibold transition ${
-    loading || balance < MINIMUM_WITHDRAWAL
+    loading || balance < (data?.settings.minimumWithdrawal ?? 10_000)
       ? "cursor-not-allowed bg-gray-100 text-gray-400"
       : "bg-green-600 text-white hover:bg-green-700"
   }`}
 >
   {loading
     ? "Loading wallet..."
-    : balance >= MINIMUM_WITHDRAWAL
+    : balance >= (data?.settings.minimumWithdrawal ?? 10_000)
       ? "Withdraw Funds"
       : "Withdrawal Locked"}
 </button>

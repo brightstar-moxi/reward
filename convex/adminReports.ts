@@ -1,4 +1,4 @@
-
+import { DEFAULT_PLATFORM_SETTINGS } from "./platformSettings";
 import { query } from "./_generated/server";
 import { v } from "convex/values";
 import { authenticateAdmin } from "./adminSubmissions";
@@ -147,6 +147,130 @@ export const getOverview = query({
 
 
 
+// export const getReferralReport = query({
+//   args: {
+//     token: v.string(),
+//   },
+
+//   handler: async (ctx, args) => {
+//     await authenticateAdmin(ctx, args.token);
+
+//     // Read central platform settings
+//     const settings = await ctx.db
+//       .query("platformSettings")
+//       .first();
+
+//     const qualificationDays =
+//       settings?.referralQualificationDays ?? 30;
+
+//     const requiredReferrals =
+//       settings?.requiredReferrals ?? 10;
+
+//     // Get registered users
+//     const users = await ctx.db
+//       .query("users")
+//       .collect();
+
+//     const regularUsers = users.filter(
+//       (user) => user.role === "user"
+//     );
+
+//     const referredUsers = regularUsers.filter(
+//       (user) => Boolean(user.referredBy)
+//     );
+
+//     // Check each referred user's qualification
+//     const referralResults = await Promise.all(
+//       referredUsers.map(async (user) => {
+//         const activities = await ctx.db
+//           .query("userActivities")
+//           .withIndex("by_user", (q) =>
+//             q.eq("userId", user._id)
+//           )
+//           .collect();
+
+//         const completedDays = activities.filter(
+//           (activity) => activity.status === "completed"
+//         ).length;
+
+//         const qualified =
+//           user.status === "active" &&
+//           completedDays >= qualificationDays;
+
+//         return {
+//           userId: user._id,
+//           name: user.name,
+//           email: user.email,
+//           referredBy: user.referredBy,
+//           status: user.status,
+//           completedDays,
+//           qualified,
+//         };
+//       })
+//     );
+
+//     // Group referrals by their referrer's referral code
+//     const referrerResults = await Promise.all(
+//       regularUsers.map(async (referrer) => {
+//         const referrals = referralResults.filter(
+//           (referral) =>
+//             referral.referredBy === referrer.referralCode
+//         );
+
+//         const qualifiedCount = referrals.filter(
+//           (referral) => referral.qualified
+//         ).length;
+
+//         return {
+//           userId: referrer._id,
+//           name: referrer.name,
+//           email: referrer.email,
+//           referralCode: referrer.referralCode,
+//           totalReferrals: referrals.length,
+//           qualifiedReferrals: qualifiedCount,
+//           unqualifiedReferrals:
+//             referrals.length - qualifiedCount,
+//           meetsReferralRequirement:
+//             referrer.status === "active" &&
+//             qualifiedCount >= requiredReferrals,
+//         };
+//       })
+//     );
+
+//     const activeReferrers = referrerResults.filter(
+//       (referrer) => referrer.totalReferrals > 0
+//     );
+
+//     const qualifiedReferrals = referralResults.filter(
+//       (referral) => referral.qualified
+//     );
+
+//     return {
+//       summary: {
+//         totalReferred: referredUsers.length,
+//         qualified: qualifiedReferrals.length,
+//         unqualified:
+//           referredUsers.length - qualifiedReferrals.length,
+//         totalReferrers: activeReferrers.length,
+//         qualifiedReferrers: activeReferrers.filter(
+//           (referrer) => referrer.meetsReferralRequirement
+//         ).length,
+//         qualificationDays,
+//         requiredReferrals,
+//       },
+
+//       topReferrers: activeReferrers
+//         .sort(
+//           (a, b) =>
+//             b.qualifiedReferrals - a.qualifiedReferrals
+//         )
+//         .slice(0, 10),
+
+//       referralDetails: referralResults,
+//     };
+//   },
+// });
+
 export const getReferralReport = query({
   args: {
     token: v.string(),
@@ -155,18 +279,18 @@ export const getReferralReport = query({
   handler: async (ctx, args) => {
     await authenticateAdmin(ctx, args.token);
 
-    // Read central platform settings
     const settings = await ctx.db
       .query("platformSettings")
       .first();
 
     const qualificationDays =
-      settings?.referralQualificationDays ?? 30;
+      settings?.referralQualificationDays ??
+      DEFAULT_PLATFORM_SETTINGS.referralQualificationDays;
 
     const requiredReferrals =
-      settings?.requiredReferrals ?? 10;
+      settings?.requiredReferrals ??
+      DEFAULT_PLATFORM_SETTINGS.requiredReferrals;
 
-    // Get registered users
     const users = await ctx.db
       .query("users")
       .collect();
@@ -179,7 +303,6 @@ export const getReferralReport = query({
       (user) => Boolean(user.referredBy)
     );
 
-    // Check each referred user's qualification
     const referralResults = await Promise.all(
       referredUsers.map(async (user) => {
         const activities = await ctx.db
@@ -189,9 +312,13 @@ export const getReferralReport = query({
           )
           .collect();
 
-        const completedDays = activities.filter(
-          (activity) => activity.status === "completed"
-        ).length;
+        const completedDays = new Set(
+          activities
+            .filter(
+              (activity) => activity.status === "completed"
+            )
+            .map((activity) => activity.day)
+        ).size;
 
         const qualified =
           user.status === "active" &&
@@ -209,33 +336,30 @@ export const getReferralReport = query({
       })
     );
 
-    // Group referrals by their referrer's referral code
-    const referrerResults = await Promise.all(
-      regularUsers.map(async (referrer) => {
-        const referrals = referralResults.filter(
-          (referral) =>
-            referral.referredBy === referrer.referralCode
-        );
+    const referrerResults = regularUsers.map((referrer) => {
+      const referrals = referralResults.filter(
+        (referral) =>
+          referral.referredBy === referrer.referralCode
+      );
 
-        const qualifiedCount = referrals.filter(
-          (referral) => referral.qualified
-        ).length;
+      const qualifiedCount = referrals.filter(
+        (referral) => referral.qualified
+      ).length;
 
-        return {
-          userId: referrer._id,
-          name: referrer.name,
-          email: referrer.email,
-          referralCode: referrer.referralCode,
-          totalReferrals: referrals.length,
-          qualifiedReferrals: qualifiedCount,
-          unqualifiedReferrals:
-            referrals.length - qualifiedCount,
-          meetsReferralRequirement:
-            referrer.status === "active" &&
-            qualifiedCount >= requiredReferrals,
-        };
-      })
-    );
+      return {
+        userId: referrer._id,
+        name: referrer.name,
+        email: referrer.email,
+        referralCode: referrer.referralCode,
+        totalReferrals: referrals.length,
+        qualifiedReferrals: qualifiedCount,
+        unqualifiedReferrals:
+          referrals.length - qualifiedCount,
+        meetsReferralRequirement:
+          referrer.status === "active" &&
+          qualifiedCount >= requiredReferrals,
+      };
+    });
 
     const activeReferrers = referrerResults.filter(
       (referrer) => referrer.totalReferrals > 0

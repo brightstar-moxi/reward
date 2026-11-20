@@ -19,11 +19,15 @@ export async function GET() {
       );
     }
 
-    const [wallet, transactions] = await Promise.all([
-      convex.query(api.wallet.getMyWallet, { token }),
-      convex.query(api.wallet.getMyTransactions, { token }),
-    ]);
-
+    // const [wallet, transactions] = await Promise.all([
+    //   convex.query(api.wallet.getMyWallet, { token }),
+    //   convex.query(api.wallet.getMyTransactions, { token }),
+    // ]);
+const [wallet, transactions, settings] = await Promise.all([
+  convex.query(api.wallet.getMyWallet, { token }),
+  convex.query(api.wallet.getMyTransactions, { token }),
+  convex.query(api.platformSettings.getPublicSettings, {}),
+]);
     // Nigeria uses UTC+1. Calculate today's start in that timezone.
     const now = new Date();
     const nigeriaNow = new Date(now.getTime() + 60 * 60 * 1000);
@@ -43,11 +47,17 @@ export async function GET() {
       )
       .reduce((total, transaction) => total + transaction.amount, 0);
 
+    // return NextResponse.json({
+    //   wallet,
+    //   todaysEarnings,
+    //   transactions: transactions.slice(0, 5),
+    // });
     return NextResponse.json({
-      wallet,
-      todaysEarnings,
-      transactions: transactions.slice(0, 5),
-    });
+  wallet,
+  todaysEarnings,
+  transactions: transactions.slice(0, 5),
+  settings,
+});
   } catch (error) {
     console.error("Wallet API error:", error);
 

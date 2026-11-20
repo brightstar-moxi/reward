@@ -25,7 +25,7 @@ export async function GET() {
     }
 
     const settings = await convex.query(
-      api.adminSettings.getSettings,
+   api.platformSettings.getAdminSettings,
       { token }
     );
 
@@ -54,7 +54,7 @@ export async function PATCH(request: Request) {
     const body = await request.json();
 
     const settings = await convex.mutation(
-      api.adminSettings.updateSettings,
+    api.platformSettings.updateSettings,
       {
         token,
         totalJourneyDays: body.totalJourneyDays,
