@@ -23,10 +23,33 @@ type Submission = {
   proofStorageId?: string;
 };
 
+
+
+type DailyLoginClaim = {
+  id: string;
+  claimDate: string;
+  reward: number;
+  status: "pending" | "approved" | "rejected";
+  submittedAt: number;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
+};
+
+
 export default function AdminSubmissionsPage() {
   const [submissions, setSubmissions] = useState<
     Submission[]
   >([]);
+
+const [dailyLoginClaims, setDailyLoginClaims] = useState<
+  DailyLoginClaim[]
+>([]);
+
+const [dailyLoginLoading, setDailyLoginLoading] = useState(true);
+const [dailyLoginError, setDailyLoginError] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -68,6 +91,51 @@ export default function AdminSubmissionsPage() {
 
     loadSubmissions();
   }, []);
+
+
+useEffect(() => {
+  let cancelled = false;
+
+  async function loadDailyLoginClaims() {
+    try {
+      const response = await fetch("/api/admin/daily-login", {
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || "Unable to load Daily Login claims."
+        );
+      }
+
+      if (!cancelled) {
+        setDailyLoginClaims(data.claims || []);
+        setDailyLoginError("");
+      }
+    } catch (error) {
+      if (!cancelled) {
+        setDailyLoginError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load Daily Login claims."
+        );
+      }
+    } finally {
+      if (!cancelled) {
+        setDailyLoginLoading(false);
+      }
+    }
+  }
+
+  loadDailyLoginClaims();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
+
 
   if (loading) {
     return (
@@ -138,6 +206,52 @@ const reviewSubmission = async (
     );
   }
 };
+
+
+
+
+
+const reviewDailyLogin = async (
+  claimId: string,
+  decision: "approved" | "rejected"
+) => {
+  try {
+    const response = await fetch(
+      "/api/admin/daily-login/review",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          claimId,
+          decision,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.error || "Unable to review Daily Login claim."
+      );
+    }
+
+    setDailyLoginClaims((current) =>
+      current.filter((claim) => claim.id !== claimId)
+    );
+  } catch (error) {
+    console.error("Daily Login review error:", error);
+
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Unable to review Daily Login claim."
+    );
+  }
+};
+
   return (
     <div className="space-y-6 p-6">
       <div>
@@ -331,6 +445,95 @@ const reviewSubmission = async (
           </div>
         </div>
       )}
+
+
+
+
+{/* Daily Login Claims */}
+<section className="rounded-xl border border-gray-200 bg-white p-6">
+  <div className="mb-5">
+    <h2 className="text-lg font-semibold text-gray-900">
+      Daily Login Claims
+    </h2>
+    <p className="mt-1 text-sm text-gray-500">
+      Review and approve users' daily login reward claims.
+    </p>
+  </div>
+
+  {dailyLoginLoading ? (
+    <p className="text-sm text-gray-500">
+      Loading Daily Login claims...
+    </p>
+  ) : dailyLoginError ? (
+    <p className="text-sm text-red-600">{dailyLoginError}</p>
+  ) : dailyLoginClaims.length === 0 ? (
+    <p className="text-sm text-gray-500">
+      No pending Daily Login claims.
+    </p>
+  ) : (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-sm">
+        <thead>
+          <tr className="border-b text-gray-500">
+            <th className="py-3 pr-4">User</th>
+            <th className="py-3 pr-4">Claim Date</th>
+            <th className="py-3 pr-4">Reward</th>
+            <th className="py-3 pr-4">Submitted</th>
+            <th className="py-3">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody className="divide-y divide-gray-100">
+          {dailyLoginClaims.map((claim) => (
+            <tr key={claim.id}>
+              <td className="py-4 pr-4">
+                <p className="font-medium text-gray-900">
+                  {claim.user?.name || "Unknown User"}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {claim.user?.email || "No email"}
+                </p>
+              </td>
+
+              <td className="py-4 pr-4">{claim.claimDate}</td>
+
+              <td className="py-4 pr-4 font-medium">
+                ₦{claim.reward.toLocaleString("en-NG")}
+              </td>
+
+              <td className="py-4 pr-4">
+                {new Date(claim.submittedAt).toLocaleString()}
+              </td>
+
+              <td className="py-4">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() =>
+                      reviewDailyLogin(claim.id, "approved")
+                    }
+                    className="rounded-lg bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700"
+                  >
+                    Approve
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      reviewDailyLogin(claim.id, "rejected")
+                    }
+                    className="rounded-lg bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</section>
+
     </div>
   );
 }
