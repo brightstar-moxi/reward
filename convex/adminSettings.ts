@@ -9,6 +9,7 @@ const DEFAULT_SETTINGS = {
   referralQualificationDays: 30,
   requiredReferrals: 10,
   minimumWithdrawal: 10000,
+  dailyLoginReward: 100,
 };
 
 export const getSettings = query({
@@ -21,7 +22,10 @@ export const getSettings = query({
       .query("platformSettings")
       .first();
 
-    return settings ?? DEFAULT_SETTINGS;
+    return {
+      ...DEFAULT_SETTINGS,
+      ...settings,
+    };
   },
 });
 
@@ -33,13 +37,13 @@ export const updateSettings = mutation({
     referralQualificationDays: v.number(),
     requiredReferrals: v.number(),
     minimumWithdrawal: v.number(),
+    dailyLoginReward: v.optional(v.number()),
   },
 
   handler: async (ctx, args) => {
     await authenticateAdmin(ctx, args.token);
 
     const {
-      token,
       totalJourneyDays,
       withdrawalQualificationDays,
       referralQualificationDays,
@@ -47,12 +51,22 @@ export const updateSettings = mutation({
       minimumWithdrawal,
     } = args;
 
+    const existing = await ctx.db
+      .query("platformSettings")
+      .first();
+
+    const dailyLoginReward =
+      args.dailyLoginReward ??
+      existing?.dailyLoginReward ??
+      DEFAULT_SETTINGS.dailyLoginReward;
+
     const values = [
       totalJourneyDays,
       withdrawalQualificationDays,
       referralQualificationDays,
       requiredReferrals,
       minimumWithdrawal,
+      dailyLoginReward,
     ];
 
     if (
@@ -60,7 +74,9 @@ export const updateSettings = mutation({
         (value) => !Number.isSafeInteger(value) || value <= 0
       )
     ) {
-      throw new Error("All settings must be positive whole numbers.");
+      throw new Error(
+        "All settings must be positive whole numbers."
+      );
     }
 
     if (
@@ -72,10 +88,6 @@ export const updateSettings = mutation({
       );
     }
 
-    const existing = await ctx.db
-      .query("platformSettings")
-      .first();
-
     const updatedAt = Date.now();
 
     const settings = {
@@ -84,6 +96,7 @@ export const updateSettings = mutation({
       referralQualificationDays,
       requiredReferrals,
       minimumWithdrawal,
+      dailyLoginReward,
       updatedAt,
     };
 

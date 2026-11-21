@@ -228,7 +228,8 @@ type: v.union(
   v.literal("reward"),
   v.literal("withdrawal"),
   v.literal("penalty"),
-  v.literal("refund")
+  v.literal("refund"),
+  v.literal("referral")
 ),
 
 isTest: v.optional(v.boolean()),
@@ -351,8 +352,37 @@ reference: v.optional(v.string()),
     referralQualificationDays: v.number(),
     requiredReferrals: v.number(),
     minimumWithdrawal: v.number(),
+   dailyLoginReward: v.optional(v.number()),
     updatedAt: v.number(),
   }),
+
+
+  dailyLoginClaims: defineTable({
+  userId: v.id("users"),
+
+  // Nigerian calendar date: YYYY-MM-DD
+  claimDate: v.string(),
+
+  // Reward amount saved when the user claims
+  reward: v.number(),
+
+  status: v.union(
+    v.literal("pending"),
+    v.literal("approved"),
+    v.literal("rejected")
+  ),
+
+  submittedAt: v.number(),
+  reviewedAt: v.optional(v.number()),
+  reviewedBy: v.optional(v.id("users")),
+  adminNote: v.optional(v.string()),
+})
+  .index("by_user", ["userId"])
+  .index("by_user_date", ["userId", "claimDate"])
+  .index("by_status", ["status"])
+  .index("by_claim_date", ["claimDate"]),
+
+  
 });
 
 

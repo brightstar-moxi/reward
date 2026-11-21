@@ -62,6 +62,7 @@ export async function PATCH(request: Request) {
         referralQualificationDays: body.referralQualificationDays,
         requiredReferrals: body.requiredReferrals,
         minimumWithdrawal: body.minimumWithdrawal,
+        dailyLoginReward: body.dailyLoginReward,
       }
     );
 

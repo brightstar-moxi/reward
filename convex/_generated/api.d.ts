@@ -20,6 +20,7 @@ import type * as adminUsers from "../adminUsers.js";
 import type * as adminWallet from "../adminWallet.js";
 import type * as adminWithdrawals from "../adminWithdrawals.js";
 import type * as dailyActivities from "../dailyActivities.js";
+import type * as dailyLogin from "../dailyLogin.js";
 import type * as dailyPenalties from "../dailyPenalties.js";
 import type * as participation from "../participation.js";
 import type * as platformSettings from "../platformSettings.js";
@@ -52,6 +53,7 @@ declare const fullApi: ApiFromModules<{
   adminWallet: typeof adminWallet;
   adminWithdrawals: typeof adminWithdrawals;
   dailyActivities: typeof dailyActivities;
+  dailyLogin: typeof dailyLogin;
   dailyPenalties: typeof dailyPenalties;
   participation: typeof participation;
   platformSettings: typeof platformSettings;

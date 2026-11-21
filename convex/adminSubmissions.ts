@@ -701,6 +701,80 @@ await ctx.db.insert("walletTransactions", {
   isTest: false,
   createdAt: now,
 });
+
+
+  // Find the referrer using the referred user's referral code.
+  const referredUser = await ctx.db.get(submission.userId);
+
+  if (referredUser?.referredBy) {
+    const referrer = await ctx.db
+      .query("users")
+      .withIndex("by_referral_code", (q: any) =>
+        q.eq("referralCode", referredUser.referredBy)
+      )
+      .unique();
+
+    if (referrer) {
+      const commission = Math.floor(task.reward * 0.10);
+
+      if (commission > 0) {
+        const reference = `REFERRAL-${submission._id}`;
+
+        // Prevent duplicate referral commissions.
+        const existingCommission = await ctx.db
+          .query("walletTransactions")
+          .withIndex("by_reference", (q: any) =>
+            q.eq("reference", reference)
+          )
+          .unique();
+
+        if (!existingCommission) {
+          let referrerWallet = await ctx.db
+            .query("wallets")
+            .withIndex("by_user", (q: any) =>
+              q.eq("userId", referrer._id)
+            )
+            .unique();
+
+          // Create the referrer's wallet if necessary.
+          if (!referrerWallet) {
+            const walletId = await ctx.db.insert("wallets", {
+              userId: referrer._id,
+              balance: 0,
+              totalEarned: 0,
+              totalWithdrawn: 0,
+              createdAt: now,
+              updatedAt: now,
+            });
+
+            referrerWallet = await ctx.db.get(walletId);
+          }
+
+          if (!referrerWallet) {
+            throw new Error("Could not create the referrer's wallet.");
+          }
+
+          // Credit the 10% commission.
+          await ctx.db.patch(referrerWallet._id, {
+            balance: referrerWallet.balance + commission,
+            totalEarned: referrerWallet.totalEarned + commission,
+            updatedAt: now,
+          });
+
+          // Record the referral commission.
+          await ctx.db.insert("walletTransactions", {
+            userId: referrer._id,
+            type: "referral",
+            amount: commission,
+            description: `10% referral commission from ${referredUser.name}`,
+            reference,
+            isTest: false,
+            createdAt: now,
+          });
+        }
+      }
+    }
+  }
 }
 
 export const getPending = query({

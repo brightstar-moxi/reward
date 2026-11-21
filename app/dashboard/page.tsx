@@ -21,7 +21,7 @@ type WalletData = {
 
 type Transaction = {
   _id: string;
-  type: "reward" | "withdrawal";
+  type: "reward" | "refund" | "withdrawal" | "penalty" | "referral";
   amount: number;
   description: string;
   createdAt: number;
@@ -72,6 +72,20 @@ type ReferralData = {
   totalReferrals: number;
 };
 
+
+type DailyLoginData = {
+  claim: {
+    status: "pending" | "approved" | "rejected";
+    reward: number;
+    claimDate: string;
+    submittedAt: number;
+    adminNote?: string;
+  } | null;
+  claimDate: string;
+  reward: number;
+};
+
+
 type DailyTasksData = {
   currentDay: number;
   totalDays: number;
@@ -116,6 +130,15 @@ const [referralError, setReferralError] = useState("");
 const [copiedReferral, setCopiedReferral] = useState<
   "code" | "link" | null
 >(null);
+
+
+
+const [dailyLogin, setDailyLogin] =
+  useState<DailyLoginData | null>(null);
+
+const [dailyLoginLoading, setDailyLoginLoading] = useState(true);
+const [dailyLoginError, setDailyLoginError] = useState("");
+const [claimingDailyLogin, setClaimingDailyLogin] = useState(false);
 
 
 useEffect(() => {
@@ -170,6 +193,93 @@ async function copyReferral(value: string, type: "code" | "link") {
   }
 }
 
+
+
+useEffect(() => {
+  let cancelled = false;
+
+  async function loadDailyLogin() {
+    try {
+      const response = await fetch("/api/daily-login/status", {
+        cache: "no-store",
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result.error || "Unable to load Daily Login status."
+        );
+      }
+
+      if (!cancelled) {
+        setDailyLogin(result);
+        setDailyLoginError("");
+      }
+    } catch (error) {
+      if (!cancelled) {
+        setDailyLoginError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load Daily Login status."
+        );
+      }
+    } finally {
+      if (!cancelled) {
+        setDailyLoginLoading(false);
+      }
+    }
+  }
+
+  loadDailyLogin();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
+
+
+async function handleDailyLoginClaim() {
+  try {
+    setClaimingDailyLogin(true);
+    setDailyLoginError("");
+
+    const response = await fetch("/api/daily-login/claim", {
+      method: "POST",
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result.error || "Unable to submit Daily Login claim."
+      );
+    }
+
+    // Refresh the claim status after successful submission.
+    const statusResponse = await fetch("/api/daily-login/status", {
+      cache: "no-store",
+    });
+
+    const statusResult = await statusResponse.json();
+
+    if (!statusResponse.ok) {
+      throw new Error(
+        statusResult.error || "Unable to refresh Daily Login status."
+      );
+    }
+
+    setDailyLogin(statusResult);
+  } catch (error) {
+    setDailyLoginError(
+      error instanceof Error
+        ? error.message
+        : "Unable to submit Daily Login claim."
+    );
+  } finally {
+    setClaimingDailyLogin(false);
+  }
+}
 
 
 useEffect(() => {
@@ -275,11 +385,11 @@ useEffect(() => {
   const balance = wallet?.balance ?? 0;
   const todaysEarnings = data?.todaysEarnings ?? 0;
   const progress = Math.min(
-    (balance / MINIMUM_WITHDRAWAL) * 100,
+    (balance /(data?.settings.minimumWithdrawal ?? 10_000)) * 100,
     100
   );
   const remaining = Math.max(
-    MINIMUM_WITHDRAWAL - balance,
+   (data?.settings.minimumWithdrawal ?? 10_000) - balance,
     0
   );
 
@@ -316,7 +426,7 @@ useEffect(() => {
       ? `Day ${participation.currentDay}`
       : "Unavailable",
   description: participation
-    ? `Day ${participation.currentDay} of 100`
+    ? `Day ${participation.currentDay} of ${participation.totalDays}`
     : "Your participation progress",
   icon: CalendarDays,
 },
@@ -484,6 +594,93 @@ useEffect(() => {
         </div>
       </div>
     </>
+  )}
+</section>
+
+
+{/* Daily Login */}
+<section className="rounded-2xl border border-gray-200 bg-white p-6">
+  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <div className="flex items-center gap-3">
+        <div className="rounded-xl bg-green-50 p-3 text-green-600">
+          <CalendarDays size={22} />
+        </div>
+
+        <div>
+          <h3 className="font-semibold text-gray-900">
+            Daily Login Reward
+          </h3>
+          <p className="text-sm text-gray-500">
+            Claim your daily reward and keep your journey active.
+          </p>
+        </div>
+      </div>
+
+      <p className="mt-4 text-2xl font-bold text-green-600">
+        {dailyLoginLoading
+          ? "Loading..."
+          : formatNaira(dailyLogin?.reward ?? 100)}
+      </p>
+      <p className="text-xs text-gray-400">
+        Daily login reward
+      </p>
+    </div>
+
+    <div className="sm:min-w-48 sm:text-right">
+      {dailyLoginLoading ? (
+        <p className="text-sm text-gray-500">
+          Checking claim status...
+        </p>
+      ) : dailyLoginError ? (
+        <p className="text-sm text-red-600">
+          {dailyLoginError}
+        </p>
+      ) : !dailyLogin?.claim ? (
+        <button
+          type="button"
+          onClick={handleDailyLoginClaim}
+          disabled={claimingDailyLogin}
+          className="w-full rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+        >
+          {claimingDailyLogin ? "Submitting..." : "Claim Daily Login"}
+        </button>
+      ) : dailyLogin.claim.status === "pending" ? (
+        <span className="inline-flex items-center rounded-full bg-yellow-50 px-4 py-2 text-sm font-medium text-yellow-700">
+          Pending Approval
+        </span>
+      ) : dailyLogin.claim.status === "approved" ? (
+        <span className="inline-flex items-center gap-2 rounded-full bg-green-50 px-4 py-2 text-sm font-medium text-green-700">
+          <CheckCircle2 size={16} />
+          Reward Approved
+        </span>
+      ) : (
+        <span className="inline-flex items-center rounded-full bg-red-50 px-4 py-2 text-sm font-medium text-red-700">
+          Claim Rejected
+        </span>
+      )}
+    </div>
+  </div>
+
+  {dailyLogin?.claim?.status === "pending" && (
+    <p className="mt-4 text-sm text-gray-500">
+      Your Daily Login claim has been submitted and is waiting for admin approval.
+    </p>
+  )}
+
+  {dailyLogin?.claim?.status === "approved" && (
+    <p className="mt-4 text-sm text-green-700">
+      Your daily reward has been approved and credited to your wallet.
+    </p>
+  )}
+
+  {dailyLogin?.claim?.status === "rejected" && (
+    <p className="mt-4 text-sm text-red-600">
+      Your claim was rejected. You cannot submit another claim today.
+      {dailyLogin.claim.adminNote
+        ? ` Admin note: ${dailyLogin.claim.adminNote}`
+        : ""}
+    </p>
   )}
 </section>
 
@@ -757,7 +954,12 @@ useEffect(() => {
         ) : data?.transactions.length ? (
           <div className="mt-5 divide-y divide-gray-100">
             {data.transactions.map((transaction) => {
-              const isReward = transaction.type === "reward";
+              // const isReward = transaction.type === "reward";
+              const isCredit =
+ 
+  transaction.type === "reward" ||
+  transaction.type === "refund" ||
+  transaction.type === "referral";
 
               return (
                 <div
@@ -767,12 +969,12 @@ useEffect(() => {
                   <div className="flex min-w-0 items-center gap-3">
                     <div
                       className={`rounded-xl p-3 ${
-                        isReward
+                       isCredit
                           ? "bg-green-50 text-green-600"
                           : "bg-orange-50 text-orange-600"
                       }`}
                     >
-                      {isReward ? (
+                      {isCredit? (
                         <ArrowDownLeft size={20} />
                       ) : (
                         <ArrowUpRight size={20} />
@@ -798,13 +1000,13 @@ useEffect(() => {
 
                   <p
                     className={`shrink-0 text-sm font-semibold ${
-                      isReward
+                      isCredit
                         ? "text-green-600"
                         : "text-gray-800"
                     }`}
                   >
-                    {isReward ? "+" : "-"}
-                    {formatNaira(transaction.amount)}
+                    {isCredit ? "+" : "-"}
+{formatNaira(Math.abs(transaction.amount))}
                   </p>
                 </div>
               );

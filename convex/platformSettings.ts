@@ -8,6 +8,7 @@ export const DEFAULT_PLATFORM_SETTINGS = {
   referralQualificationDays: 30,
   requiredReferrals: 10,
   minimumWithdrawal: 10_000,
+  dailyLoginReward: 100,
 };
 
 async function getSettings(ctx: any) {
@@ -20,6 +21,8 @@ async function getSettings(ctx: any) {
         referralQualificationDays: settings.referralQualificationDays,
         requiredReferrals: settings.requiredReferrals,
         minimumWithdrawal: settings.minimumWithdrawal,
+        dailyLoginReward:
+  settings.dailyLoginReward ?? DEFAULT_PLATFORM_SETTINGS.dailyLoginReward,
       }
     : DEFAULT_PLATFORM_SETTINGS;
 }
@@ -54,6 +57,7 @@ export const updateSettings = mutation({
     referralQualificationDays: v.number(),
     requiredReferrals: v.number(),
     minimumWithdrawal: v.number(),
+    dailyLoginReward: v.number(),
   },
 
   handler: async (ctx, args) => {
@@ -65,6 +69,7 @@ export const updateSettings = mutation({
       args.referralQualificationDays,
       args.requiredReferrals,
       args.minimumWithdrawal,
+       args.dailyLoginReward
     ];
 
     if (
@@ -94,6 +99,7 @@ export const updateSettings = mutation({
       referralQualificationDays: args.referralQualificationDays,
       requiredReferrals: args.requiredReferrals,
       minimumWithdrawal: args.minimumWithdrawal,
+      dailyLoginReward: args.dailyLoginReward,
       updatedAt: Date.now(),
     };
 
@@ -108,4 +114,9 @@ export const updateSettings = mutation({
       settings,
     };
   },
+
+
+
 });
+
+

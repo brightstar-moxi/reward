@@ -9,6 +9,7 @@ type PlatformSettings = {
   referralQualificationDays: number;
   requiredReferrals: number;
   minimumWithdrawal: number;
+   dailyLoginReward: number;
 };
 
 const defaultSettings: PlatformSettings = {
@@ -17,6 +18,7 @@ const defaultSettings: PlatformSettings = {
   referralQualificationDays: 30,
   requiredReferrals: 10,
   minimumWithdrawal: 10000,
+    dailyLoginReward: 100,
 };
 
 export default function AdminSettingsPage() {
@@ -138,6 +140,12 @@ export default function AdminSettingsPage() {
       description: "Minimum amount a user can request to withdraw.",
       min: 1,
     },
+    {
+  key: "dailyLoginReward",
+  label: "Daily Login Reward (₦)",
+  description: "Reward users receive when their daily login claim is approved.",
+  min: 1,
+},
   ];
 
   return (

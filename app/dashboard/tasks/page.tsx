@@ -373,6 +373,12 @@ import { useQuery } from "convex/react";
 
 import { api } from "@/convex/_generated/api";
 
+
+type ParticipationData = {
+  currentDay: number;
+  totalDays: number;
+};
+
 type SubmissionStatus =
   | "pending"
   | "approved"
@@ -380,7 +386,31 @@ type SubmissionStatus =
   | null;
 
 export default function TasksPage() {
-  const currentDay = 1;
+  // const currentDay = 1;
+
+  const [participation, setParticipation] =
+  useState<ParticipationData | null>(null);
+  useEffect(() => {
+  const loadParticipation = async () => {
+    try {
+      const response = await fetch("/api/participation");
+
+      if (!response.ok) {
+        throw new Error("Unable to load participation.");
+      }
+
+      const data = await response.json();
+
+      setParticipation(data.participation);
+    } catch (error) {
+      console.error("Participation error:", error);
+    }
+  };
+
+  loadParticipation();
+}, []);
+
+const currentDay = participation?.currentDay ?? 1;
 
   const [submissionStatuses, setSubmissionStatuses] =
     useState<Record<string, SubmissionStatus>>({});
@@ -473,10 +503,11 @@ export default function TasksPage() {
     checkSubmissions();
   }, [tasks]);
 
-  if (
-    activity === undefined ||
-    tasks === undefined
-  ) {
+if (
+  participation === null ||
+  activity === undefined ||
+  tasks === undefined
+) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <p className="text-sm text-gray-500">
@@ -526,7 +557,7 @@ export default function TasksPage() {
       {/* Header */}
       <div>
         <p className="text-sm font-medium text-green-600">
-          Day {currentDay} of 100
+      Day {currentDay} of {participation.totalDays}
         </p>
 
         <h1 className="mt-1 text-3xl font-bold text-gray-900">

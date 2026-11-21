@@ -278,7 +278,8 @@ export const getMyParticipation = query({
       isJourneyComplete,
 
       // Retained for compatibility with existing frontend code.
-      isDay100: currentDay === 100,
+      // isDay100: currentDay === 100,
+      isDay100: isJourneyComplete,
     };
   },
 });
