@@ -6,6 +6,7 @@ import { authenticateAdmin } from "./adminSubmissions";
 export const getOverview = query({
   args: {
     token: v.string(),
+ 
   },
 
   handler: async (ctx, args) => {
@@ -19,133 +20,223 @@ export const getOverview = query({
     const transactions = await ctx.db.query("walletTransactions").collect();
     const withdrawals = await ctx.db.query("withdrawals").collect();
 
+    const dailyLoginClaims = await ctx.db
+      .query("dailyLoginClaims")
+      .collect();
+
     // Exclude admin accounts from user statistics
-    const regularUsers = users.filter(
-      (user) => user.role === "user"
-    );
+const regularUsers = users.filter(
+  (user) => user.role === "user"
+);
 
-    const activeUsers = regularUsers.filter(
-      (user) => user.status === "active"
-    );
+const activeUsers = regularUsers.filter(
+  (user) => user.status === "active"
+);
 
-    const suspendedUsers = regularUsers.filter(
-      (user) => user.status === "suspended"
-    );
+const suspendedUsers = regularUsers.filter(
+  (user) => user.status === "suspended"
+);
 
-    // Referral statistics
-    const referredUsers = regularUsers.filter(
-      (user) => Boolean(user.referredBy)
-    );
+// Referral statistics
+const referredUsers = regularUsers.filter(
+  (user) => Boolean(user.referredBy)
+);
 
-    // Task statistics
-    const activeTasks = tasks.filter(
-      (task) => task.isActive
-    );
+// Task statistics
+const activeTasks = tasks.filter(
+  (task) => task.isActive
+);
 
-    // Submission statistics
-    const pendingSubmissions = submissions.filter(
-      (item) => item.status === "pending"
-    );
+// Submission statistics
+const pendingSubmissions = submissions.filter(
+  (item) => item.status === "pending"
+);
 
-    const approvedSubmissions = submissions.filter(
-      (item) => item.status === "approved"
-    );
+const approvedSubmissions = submissions.filter(
+  (item) => item.status === "approved"
+);
 
-    const rejectedSubmissions = submissions.filter(
-      (item) => item.status === "rejected"
-    );
+const rejectedSubmissions = submissions.filter(
+  (item) => item.status === "rejected"
+);
 
-    // Exclude test transactions from financial reports
-    const realTransactions = transactions.filter(
-      (transaction) => transaction.isTest !== true
-    );
+// Exclude test transactions from financial reports
+const realTransactions = transactions.filter(
+  (transaction) => transaction.isTest !== true
+);
 
-    const rewardTransactions = realTransactions.filter(
-      (transaction) => transaction.type === "reward"
-    );
+// Recent registrations
+const recentUsers = [...regularUsers]
+  .sort((a, b) => b.createdAt - a.createdAt)
+  .slice(0, 5)
+  .map((user) => ({
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    createdAt: user.createdAt,
+  }));
 
-    const totalRewardsIssued = rewardTransactions.reduce(
-      (total, transaction) => total + transaction.amount,
-      0
-    );
+// Recent wallet transactions
+const recentTransactions = [...realTransactions]
+  .sort((a, b) => b.createdAt - a.createdAt)
+  .slice(0, 5)
+  .map((transaction) => ({
+    id: transaction._id,
+    type: transaction.type,
+    amount: transaction.amount,
+    description: transaction.description,
+    createdAt: transaction.createdAt,
+  }));
 
-    // Wallet statistics
-    const totalWalletBalance = wallets.reduce(
-      (total, wallet) => total + wallet.balance,
-      0
-    );
+// Reward statistics
+const rewardTransactions = realTransactions.filter(
+  (transaction) => transaction.type === "reward"
+);
 
-    const totalEarned = wallets.reduce(
-      (total, wallet) => total + wallet.totalEarned,
-      0
-    );
+const totalRewardsIssued = rewardTransactions.reduce(
+  (total, transaction) => total + transaction.amount,
+  0
+);
 
-    // Withdrawal statistics
-    const pendingWithdrawals = withdrawals.filter(
-      (item) => item.status === "pending"
-    );
+// Wallet statistics
+const totalWalletBalance = wallets.reduce(
+  (total, wallet) => total + wallet.balance,
+  0
+);
 
-    const processingWithdrawals = withdrawals.filter(
-      (item) => item.status === "processing"
-    );
+const totalEarned = wallets.reduce(
+  (total, wallet) => total + wallet.totalEarned,
+  0
+);
 
-    const paidWithdrawals = withdrawals.filter(
-      (item) => item.status === "paid"
-    );
+// Daily Login statistics
+const pendingDailyLogins = dailyLoginClaims.filter(
+  (item) => item.status === "pending"
+);
 
-    const rejectedWithdrawals = withdrawals.filter(
-      (item) => item.status === "rejected"
-    );
+const approvedDailyLogins = dailyLoginClaims.filter(
+  (item) => item.status === "approved"
+);
 
-    const totalWithdrawn = paidWithdrawals.reduce(
-      (total, item) => total + item.amount,
-      0
-    );
+const rejectedDailyLogins = dailyLoginClaims.filter(
+  (item) => item.status === "rejected"
+);
 
-    return {
-      users: {
-        total: regularUsers.length,
-        active: activeUsers.length,
-        suspended: suspendedUsers.length,
-        referred: referredUsers.length,
-      },
+// Withdrawal statistics
+const pendingWithdrawals = withdrawals.filter(
+  (item) => item.status === "pending"
+);
 
-      tasks: {
-        total: tasks.length,
-        active: activeTasks.length,
-      },
+const processingWithdrawals = withdrawals.filter(
+  (item) => item.status === "processing"
+);
 
-      submissions: {
-        total: submissions.length,
-        pending: pendingSubmissions.length,
-        approved: approvedSubmissions.length,
-        rejected: rejectedSubmissions.length,
-      },
+const paidWithdrawals = withdrawals.filter(
+  (item) => item.status === "paid"
+);
 
-      rewards: {
-        totalIssued: totalRewardsIssued,
-        transactions: rewardTransactions.length,
-      },
+const rejectedWithdrawals = withdrawals.filter(
+  (item) => item.status === "rejected"
+);
 
-      wallets: {
-        total: wallets.length,
-        totalBalance: totalWalletBalance,
-        totalEarned,
-      },
+const totalWithdrawn = paidWithdrawals.reduce(
+  (total, item) => total + item.amount,
+  0
+);
 
-      withdrawals: {
-        total: withdrawals.length,
-        pending: pendingWithdrawals.length,
-        processing: processingWithdrawals.length,
-        paid: paidWithdrawals.length,
-        rejected: rejectedWithdrawals.length,
-        totalPaid: totalWithdrawn,
-      },
-    };
-  },
+// Last 7 days analytics
+const dateFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Africa/Lagos",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
 });
 
+const analyticsDates = Array.from({ length: 7 }, (_, index) => {
+  const date = new Date(
+    Date.now() - (6 - index) * 24 * 60 * 60 * 1000
+  );
 
+  return dateFormatter.format(date);
+});
+
+const dailyAnalytics = analyticsDates.map((date) => ({
+  date,
+
+  registrations: regularUsers.filter(
+    (user) => dateFormatter.format(user.createdAt) === date
+  ).length,
+
+  rewards: rewardTransactions
+    .filter(
+      (transaction) =>
+        dateFormatter.format(transaction.createdAt) === date
+    )
+    .reduce((total, transaction) => total + transaction.amount, 0),
+
+  withdrawals: paidWithdrawals
+    .filter(
+      (withdrawal) =>
+        withdrawal.paidAt &&
+        dateFormatter.format(withdrawal.paidAt) === date
+    )
+    .reduce((total, withdrawal) => total + withdrawal.amount, 0),
+}));
+
+// Return dashboard statistics
+return {
+  users: {
+    total: regularUsers.length,
+    active: activeUsers.length,
+    suspended: suspendedUsers.length,
+    referred: referredUsers.length,
+  },
+
+  tasks: {
+    total: tasks.length,
+    active: activeTasks.length,
+  },
+
+  submissions: {
+    total: submissions.length,
+    pending: pendingSubmissions.length,
+    approved: approvedSubmissions.length,
+    rejected: rejectedSubmissions.length,
+  },
+
+  dailyLogin: {
+    total: dailyLoginClaims.length,
+    pending: pendingDailyLogins.length,
+    approved: approvedDailyLogins.length,
+    rejected: rejectedDailyLogins.length,
+  },
+
+  rewards: {
+    totalIssued: totalRewardsIssued,
+    transactions: rewardTransactions.length,
+  },
+
+  wallets: {
+    total: wallets.length,
+    totalBalance: totalWalletBalance,
+    totalEarned,
+  },
+
+  withdrawals: {
+    total: withdrawals.length,
+    pending: pendingWithdrawals.length,
+    processing: processingWithdrawals.length,
+    paid: paidWithdrawals.length,
+    rejected: rejectedWithdrawals.length,
+    totalPaid: totalWithdrawn,
+  },
+
+  recentUsers,
+  recentTransactions,
+  dailyAnalytics,
+};
+  }
+  })
 
 // export const getReferralReport = query({
 //   args: {
@@ -580,6 +671,9 @@ export const getWalletReport = query({
       (transaction) => transaction.isTest !== true
     );
 
+
+
+
     const userMap = new Map(
       users.map((user) => [user._id, user])
     );
@@ -879,8 +973,8 @@ export const getDailyActivityReport = query({
           completionRate:
             dayActivities.length > 0
               ? Math.round(
-                  (dayCompleted / dayActivities.length) * 100
-                )
+                (dayCompleted / dayActivities.length) * 100
+              )
               : 0,
         };
       }
