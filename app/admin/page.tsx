@@ -105,6 +105,7 @@ const [refreshKey, setRefreshKey] = useState(0);;
         });
 
         const data = await response.json();
+        console.log("Daily Analytics:", data.reports?.dailyAnalytics);
 
         if (!response.ok) {
           throw new Error(data.error || "Failed to load dashboard.");
