@@ -224,3 +224,94 @@ export const getMyReferrals = query({
     };
   },
 });
+
+
+export const updateProfile = mutation({
+  args: {
+    token: v.string(),
+    name: v.string(),
+  },
+
+  handler: async (ctx, args) => {
+    const tokenBytes = new TextEncoder().encode(args.token);
+    const hash = await crypto.subtle.digest("SHA-256", tokenBytes);
+
+    const tokenHash = Array.from(new Uint8Array(hash))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+
+    const session = await ctx.db
+      .query("sessions")
+      .withIndex("by_token_hash", (q) =>
+        q.eq("tokenHash", tokenHash)
+      )
+      .unique();
+
+    if (!session || session.expiresAt <= Date.now()) {
+      throw new Error("Your session is invalid or expired.");
+    }
+
+    const user = await ctx.db.get(session.userId);
+
+    if (!user || user.status !== "active") {
+      throw new Error("Your account is unavailable.");
+    }
+
+    const name = args.name.trim();
+
+    if (name.length < 2 || name.length > 60) {
+      throw new Error("Name must be between 2 and 60 characters.");
+    }
+
+    await ctx.db.patch(user._id, {
+      name,
+      updatedAt: Date.now(),
+    });
+
+    return {
+      success: true,
+      name,
+    };
+  },
+});
+
+
+export const updatePassword = mutation({
+  args: {
+    token: v.string(),
+    passwordHash: v.string(),
+  },
+
+  handler: async (ctx, args) => {
+    const tokenBytes = new TextEncoder().encode(args.token);
+    const hash = await crypto.subtle.digest("SHA-256", tokenBytes);
+
+    const tokenHash = Array.from(new Uint8Array(hash))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+
+    const session = await ctx.db
+      .query("sessions")
+      .withIndex("by_token_hash", (q) =>
+        q.eq("tokenHash", tokenHash)
+      )
+      .unique();
+
+    if (!session || session.expiresAt <= Date.now()) {
+      throw new Error("Your session is invalid or expired.");
+    }
+
+    const user = await ctx.db.get(session.userId);
+
+    if (!user || user.status !== "active") {
+      throw new Error("Your account is unavailable.");
+    }
+
+    await ctx.db.patch(user._id, {
+      passwordHash: args.passwordHash,
+      updatedAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
