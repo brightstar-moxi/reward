@@ -7,20 +7,80 @@ const convex = new ConvexHttpClient(
   process.env.NEXT_PUBLIC_CONVEX_URL!
 );
 
+// async function verifyPassword(
+//   password: string,
+//   storedHash: string
+// ) {
+//   const [saltHex, hashHex] = storedHash.split(":");
+
+//   if (!saltHex || !hashHex) {
+//     return false;
+//   }
+
+//   const encoder = new TextEncoder();
+
+//   const salt = new Uint8Array(
+//     saltHex.match(/.{1,2}/g)!.map((byte) =>
+//       parseInt(byte, 16)
+//     )
+//   );
+
+//   const keyMaterial =
+//     await crypto.subtle.importKey(
+//       "raw",
+//       encoder.encode(password),
+//       "PBKDF2",
+//       false,
+//       ["deriveBits"]
+//     );
+
+//   const derivedBits =
+//     await crypto.subtle.deriveBits(
+//       {
+//         name: "PBKDF2",
+//         salt,
+//         iterations: 310000,
+//         hash: "SHA-256",
+//       },
+//       keyMaterial,
+//       256
+//     );
+
+//   const derivedHash = Array.from(
+//     new Uint8Array(derivedBits)
+//   )
+//     .map((byte) =>
+//       byte.toString(16).padStart(2, "0")
+//     )
+//     .join("");
+
+//   return derivedHash === hashHex;
+// }
+
 async function verifyPassword(
   password: string,
   storedHash: string
 ) {
-  const [saltHex, hashHex] = storedHash.split(":");
+  const parts = storedHash.split(":");
 
-  if (!saltHex || !hashHex) {
+  if (parts.length !== 2) {
+    return false;
+  }
+
+  const [saltHex, hashHex] = parts;
+
+  // Validate exact salt and hash lengths.
+  if (
+    !/^[a-f0-9]{32}$/i.test(saltHex) ||
+    !/^[a-f0-9]{64}$/i.test(hashHex)
+  ) {
     return false;
   }
 
   const encoder = new TextEncoder();
 
   const salt = new Uint8Array(
-    saltHex.match(/.{1,2}/g)!.map((byte) =>
+    saltHex.match(/.{2}/g)!.map((byte) =>
       parseInt(byte, 16)
     )
   );
@@ -54,7 +114,7 @@ async function verifyPassword(
     )
     .join("");
 
-  return derivedHash === hashHex;
+  return derivedHash === hashHex.toLowerCase();
 }
 
 export async function POST(request: Request) {

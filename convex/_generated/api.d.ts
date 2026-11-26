@@ -24,6 +24,7 @@ import type * as dailyLogin from "../dailyLogin.js";
 import type * as dailyPenalties from "../dailyPenalties.js";
 import type * as participation from "../participation.js";
 import type * as platformSettings from "../platformSettings.js";
+import type * as rateLimiter from "../rateLimiter.js";
 import type * as referrals from "../referrals.js";
 import type * as seed from "../seed.js";
 import type * as seedAdmin from "../seedAdmin.js";
@@ -57,6 +58,7 @@ declare const fullApi: ApiFromModules<{
   dailyPenalties: typeof dailyPenalties;
   participation: typeof participation;
   platformSettings: typeof platformSettings;
+  rateLimiter: typeof rateLimiter;
   referrals: typeof referrals;
   seed: typeof seed;
   seedAdmin: typeof seedAdmin;
@@ -94,4 +96,6 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
+};
